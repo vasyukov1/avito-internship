@@ -1,0 +1,22 @@
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool, specifically when used with LiteIDE
+*.out
+
+# Go workspace file
+go.work
+go.work.sum
+
+# OS
+.DS_Store
+
+# Idea files
+.idea/
+**/.idea/
+
+# env file
+.env
+
+# IDE
+.vscode/

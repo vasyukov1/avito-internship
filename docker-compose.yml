@@ -1,0 +1,45 @@
+services:
+  app:
+    build:
+      context: .
+    container_name: pr_service
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      PORT: ":8080"
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+    networks:
+      - avito_network
+
+  db:
+    image: postgres:17
+    container_name: pr_db
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+    networks:
+      - avito_network
+
+volumes:
+  pg_data:
+
+networks:
+  avito_network:
+    driver: bridge
