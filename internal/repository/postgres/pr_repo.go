@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -25,9 +26,18 @@ func (r *PRRepo) Create(ctx context.Context, pr domain.PullRequest) error {
 		pr.ID,
 		pr.Name,
 		pr.AuthorID,
-		string(pr.Status),
+		pr.Status,
 		pr.CreatedAt,
 	)
+
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			if pgErr.Code == "23505" {
+				return domain.ErrPRExists
+			}
+		}
+	}
 
 	return err
 }

@@ -15,6 +15,8 @@ const (
 	PRMerged PullRequestStatus = "MERGED"
 )
 
+// PullRequest represents a pull request in the system
+// @Description Пул-реквест в системе
 type PullRequest struct {
 	ID        string            `json:"pull_request_id"`
 	Name      string            `json:"pull_request_name"`
