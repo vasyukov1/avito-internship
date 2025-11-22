@@ -3,6 +3,8 @@ package postgres
 import (
 	"avito-internship/internal/domain"
 	"context"
+	"errors"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -60,6 +62,9 @@ func (r *UserRepo) SetIsActive(ctx context.Context, userID string, active bool) 
 
 	var user domain.User
 	if err := row.Scan(&user.ID, &user.Username, &user.TeamName, &user.IsActive); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, domain.ErrNotFound
+		}
 		return nil, err
 	}
 

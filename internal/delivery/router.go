@@ -17,6 +17,9 @@ func NewRouter(h *Handler) *gin.Engine {
 	// Team routes
 	h.RegisterTeamRoutes(r)
 
+	// User routes
+	h.RegisterUserRoutes(r)
+
 	// Swagger
 	r.GET("/swagger/*any", gin.WrapH(httpSwagger.WrapHandler))
 
