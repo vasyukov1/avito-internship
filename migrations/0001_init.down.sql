@@ -1,0 +1,5 @@
+DROP TABLE IF EXISTS teams;
+DROP TABLE IF EXISTS uesrs;
+DROP TABLE IF EXISTS pull_requests;
+DROP TABLE IF EXISTS pull_request_shorts;
+DROP TYPE IF EXISTS pr_status;
