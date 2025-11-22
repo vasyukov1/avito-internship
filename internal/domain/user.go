@@ -2,6 +2,8 @@ package domain
 
 import "context"
 
+// User represents a user in the system
+// @Description Пользователь системы
 type User struct {
 	ID       string `json:"user_id"`
 	Username string `json:"username"`

@@ -2,6 +2,8 @@ package domain
 
 import "context"
 
+// Team represents a team with members
+// @Description Команда с участниками
 type Team struct {
 	Name    string `json:"team_name"`
 	Members []User `json:"members"`

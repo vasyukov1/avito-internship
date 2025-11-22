@@ -1,6 +1,7 @@
 package main
 
 import (
+	_ "avito-internship/docs"
 	"avito-internship/internal/config"
 	"avito-internship/internal/delivery"
 	"avito-internship/internal/infrastructure"
@@ -13,6 +14,9 @@ import (
 // @title PR Service
 // @version 1.0
 // @description This is PR Service.
+// @contact.name API Support
+// @contact.url http://localhost:8080/swagger/index.html
+// @host localhost:8080
 // @BasePath /
 func main() {
 	ctx := context.Background()
