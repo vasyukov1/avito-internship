@@ -5,6 +5,9 @@ import (
 	"time"
 )
 
+// PullRequestStatus represents status of pull request
+// @Description Статус пул-реквеста
+// @Enum OPEN,MERGED
 type PullRequestStatus string
 
 const (
@@ -31,9 +34,9 @@ type PullRequestShort struct {
 
 type PullRequestRepository interface {
 	Create(ctx context.Context, pr PullRequest) error
-	GetByID(ctx context.Context, id string) (*PullRequest, error)
+	GetByUserID(ctx context.Context, id string) ([]PullRequest, error)
 	AssignReviewers(ctx context.Context, prID string, reviewers []string) error
-	Merge(ctx context.Context, prID string) (*PullRequest, error)
+	//Merge(ctx context.Context, prID string) (*PullRequest, error)
 	Reassign(ctx context.Context, prID, oldReviewerID, newReviewerID string) error
 	GetReviewList(ctx context.Context, userID string) ([]PullRequestShort, error)
 }

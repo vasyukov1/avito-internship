@@ -19,10 +19,42 @@ type UserResponse struct {
 	User *domain.User `json:"user"`
 }
 
+// UserIDRequest represents request for user ID
+// @Description Запрос с идентификатором пользователя
+type UserIDRequest struct {
+	UserID string `json:"user_id" binding:"required"`
+}
+
+// PullRequestResponse represents short pull request information
+// @Description Краткая информация о пул-реквесте
+type PullRequestResponse struct {
+	ID       string                   `json:"pull_request_id"`
+	Name     string                   `json:"pull_request_name"`
+	AuthorID string                   `json:"author_id"`
+	Status   domain.PullRequestStatus `json:"status"`
+}
+
+// PRbyUserResponse represents response with user's pull requests
+// @Description Ответ со списком PR, где пользователь назначен ревьювером
+type PRbyUserResponse struct {
+	UserID       string                `json:"user_id"`
+	PullRequests []PullRequestResponse `json:"pull_requests"`
+}
+
 func (h *Handler) RegisterUserRoutes(r *gin.Engine) {
 	users := r.Group("/users")
 	{
 		users.POST("/setIsActive", h.SetIsActive)
+		users.GET("/getReviews", h.GetReviews)
+	}
+}
+
+func ToResponse(pr domain.PullRequest) PullRequestResponse {
+	return PullRequestResponse{
+		ID:       pr.ID,
+		Name:     pr.Name,
+		AuthorID: pr.AuthorID,
+		Status:   pr.Status,
 	}
 }
 
@@ -59,4 +91,42 @@ func (h *Handler) SetIsActive(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"user": user,
 	})
+}
+
+// GetReviews godoc
+// @Summary Получить PR'ы, где пользователь назначен ревьювером
+// @Description Возвращает список пул-реквестов, в которых пользователь назначен ревьювером
+// @Tags Users
+// @Accept json
+// @Produce json
+// @Param user_id query string true "Идентификатор пользователя" example("u2")
+// @Success 200 {object} PRbyUserResponse "Список PR'ов пользователя"
+// @Failure 400 {object} ErrorResponse "Не указан user_id"
+// @Failure 404 {object} ErrorResponse "Пользователь не найден"
+// @Failure 500 {object} ErrorResponse "Внутренняя ошибка сервера"
+// @Router /users/getReviews [get]
+func (h *Handler) GetReviews(c *gin.Context) {
+	userID := c.Query("user_id")
+	if userID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": gin.H{
+				"code":    "BAD_REQUEST",
+				"message": "user_id is required",
+			},
+		})
+		return
+	}
+
+	rows, err := h.service.Storage().PullRequest().GetByUserID(c.Request.Context(), userID)
+	if err != nil {
+		h.handleError(c, err)
+		return
+	}
+
+	pullRequests := make([]PullRequestResponse, len(rows))
+	for i, pr := range rows {
+		pullRequests[i] = ToResponse(pr)
+	}
+
+	c.JSON(http.StatusOK, PRbyUserResponse{UserID: userID, PullRequests: pullRequests})
 }
