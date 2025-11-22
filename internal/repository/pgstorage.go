@@ -1,13 +1,27 @@
 package repository
 
 import (
+	"avito-internship/internal/domain"
+	"avito-internship/internal/repository/postgres"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type PgStorage struct {
-	db *pgxpool.Pool
+type Storage interface {
+	Team() domain.TeamRepository
+	User() domain.UserRepository
 }
 
-func NewPgStorage(db *pgxpool.Pool) *PgStorage {
-	return &PgStorage{db}
+type pgStorage struct {
+	team domain.TeamRepository
+	user domain.UserRepository
 }
+
+func NewPgStorage(db *pgxpool.Pool) Storage {
+	return &pgStorage{
+		team: postgres.NewTeamRepo(db),
+		user: postgres.NewUserRepo(db),
+	}
+}
+
+func (s *pgStorage) Team() domain.TeamRepository { return s.team }
+func (s *pgStorage) User() domain.UserRepository { return s.user }

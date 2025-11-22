@@ -1,11 +1,15 @@
 package infrastructure
 
-import "avito-internship/internal/domain"
+import "avito-internship/internal/repository"
 
 type Server struct {
-	storage domain.Storage
+	storage repository.Storage
 }
 
-func NewServer(storage domain.Storage) *Server {
+func NewServer(storage repository.Storage) *Server {
 	return &Server{storage: storage}
+}
+
+func (s *Server) Storage() repository.Storage {
+	return s.storage
 }

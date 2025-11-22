@@ -14,6 +14,9 @@ func NewRouter(h *Handler) *gin.Engine {
 	// Health check
 	r.GET("/health", h.Health)
 
+	// Team routes
+	h.RegisterTeamRoutes(r)
+
 	// Swagger
 	r.GET("/swagger/*any", gin.WrapH(httpSwagger.WrapHandler))
 
