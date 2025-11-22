@@ -6,9 +6,9 @@ import (
 	"net/http"
 )
 
-// UserRequest represents request for creating a user in a team
+// SimpleUser represents request for creating a user in a team
 // @Description Запрос на создание пользователя в команде
-type UserRequest struct {
+type SimpleUser struct {
 	ID       string `json:"user_id"`
 	Username string `json:"username"`
 	IsActive bool   `json:"is_active"`
@@ -17,14 +17,15 @@ type UserRequest struct {
 // TeamRequest represents request for creating a team
 // @Description Запрос на создание команды с участниками
 type TeamRequest struct {
-	Name    string        `json:"team_name" binding:"required"`
-	Members []UserRequest `json:"members"`
+	Name    string       `json:"team_name" binding:"required"`
+	Members []SimpleUser `json:"members"`
 }
 
 // TeamResponse represents response for team operations
 // @Description Ответ с информацией о команде
 type TeamResponse struct {
-	Team domain.Team `json:"team"`
+	Name    string       `json:"team_name"`
+	Members []SimpleUser `json:"members"`
 }
 
 // ErrorResponse represents error response
@@ -41,7 +42,7 @@ func (h *Handler) RegisterTeamRoutes(r *gin.Engine) {
 	r.GET("/team/get", h.GetTeam)
 }
 
-func (ur *UserRequest) ToDomain(teamName string) domain.User {
+func (ur *SimpleUser) ToDomain(teamName string) domain.User {
 	return domain.User{
 		ID:       ur.ID,
 		Username: ur.Username,
@@ -88,8 +89,7 @@ func (h *Handler) CreateTeam(c *gin.Context) {
 		}
 	}
 
-	team.Members = members
-	c.JSON(http.StatusCreated, TeamResponse{Team: team})
+	c.JSON(http.StatusCreated, TeamResponse{Name: req.Name, Members: req.Members})
 }
 
 // GetTeam godoc
