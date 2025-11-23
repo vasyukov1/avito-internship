@@ -6,9 +6,9 @@ import (
 	"net/http"
 )
 
-// setActiveRequest represents request for setting user activity status
+// SetActiveRequest represents request for setting user activity status
 // @Description Запрос на установку флага активности пользователя
-type setActiveRequest struct {
+type SetActiveRequest struct {
 	UserID   string `json:"user_id" binding:"required"`
 	IsActive bool   `json:"is_active" binding:"required"`
 }
@@ -45,7 +45,7 @@ func (h *Handler) RegisterUserRoutes(r *gin.Engine) {
 	users := r.Group("/users")
 	{
 		users.POST("/setIsActive", h.SetIsActive)
-		users.GET("/getReviews", h.GetReviews)
+		users.GET("/getReview", h.GetReview)
 	}
 }
 
@@ -64,14 +64,14 @@ func ToResponse(pr domain.PullRequest) PullRequestResponse {
 // @Tags Users
 // @Accept json
 // @Produce json
-// @Param request body setActiveRequest true "Данные для обновления активности пользователя"
+// @Param request body SetActiveRequest true "Данные для обновления активности пользователя"
 // @Success 200 {object} UserResponse "Обновлённый пользователь"
 // @Failure 400 {object} ErrorResponse "Неверный запрос"
 // @Failure 404 {object} ErrorResponse "Пользователь не найден"
 // @Failure 500 {object} ErrorResponse "Внутренняя ошибка сервера"
 // @Router /users/setIsActive [post]
 func (h *Handler) SetIsActive(c *gin.Context) {
-	var req setActiveRequest
+	var req SetActiveRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": gin.H{
@@ -93,7 +93,7 @@ func (h *Handler) SetIsActive(c *gin.Context) {
 	})
 }
 
-// GetReviews godoc
+// GetReview godoc
 // @Summary Получить PR'ы, где пользователь назначен ревьювером
 // @Description Возвращает список пул-реквестов, в которых пользователь назначен ревьювером
 // @Tags Users
@@ -104,8 +104,8 @@ func (h *Handler) SetIsActive(c *gin.Context) {
 // @Failure 400 {object} ErrorResponse "Не указан user_id"
 // @Failure 404 {object} ErrorResponse "Пользователь не найден"
 // @Failure 500 {object} ErrorResponse "Внутренняя ошибка сервера"
-// @Router /users/getReviews [get]
-func (h *Handler) GetReviews(c *gin.Context) {
+// @Router /users/getReview [get]
+func (h *Handler) GetReview(c *gin.Context) {
 	userID := c.Query("user_id")
 	if userID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{

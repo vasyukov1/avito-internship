@@ -86,6 +86,9 @@ func (r *UserRepo) GetByID(ctx context.Context, id string) (*domain.User, error)
 		&user.TeamName,
 		&user.IsActive,
 	); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, domain.ErrNotFound
+		}
 		return nil, err
 	}
 

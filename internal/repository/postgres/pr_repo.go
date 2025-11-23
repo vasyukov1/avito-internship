@@ -45,15 +45,13 @@ func (r *PRRepo) Create(ctx context.Context, pr domain.PullRequest) error {
 func (r *PRRepo) GetByUserID(ctx context.Context, userID string) ([]domain.PullRequest, error) {
 	rows, err := r.db.Query(ctx, `
         SELECT pr.pull_request_id,
-               pr.pull_request_name,
-               pr.author_id,
-               pr.status,
-               pr.created_at,
-               pr.merged_at
-        FROM pull_requests pr
-        JOIN pull_request_shorts prs
-            ON pr.pull_request_id = prs.pull_request_id
-        WHERE prs.author_id = $1
+			   pr.pull_request_name,
+			   pr.author_id,
+			   pr.status
+		FROM pull_requests pr
+		JOIN pull_request_shorts prs
+		  ON pr.pull_request_id = prs.pull_request_id
+		WHERE prs.author_id = $1
     `, userID)
 	if err != nil {
 		return nil, err
