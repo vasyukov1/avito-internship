@@ -72,13 +72,15 @@ func (r *UserRepo) SetIsActive(ctx context.Context, userID string, active bool) 
 }
 
 func (r *UserRepo) GetByID(ctx context.Context, id string) (*domain.User, error) {
-	row := r.db.QueryRow(ctx,
-		`SELECT user_id, username, team_name, is_active
+	// Get user
+	row := r.db.QueryRow(ctx, `
+		SELECT user_id, username, team_name, is_active
          FROM users
-         WHERE user_id = $1`,
-		id,
+         WHERE user_id = $1
+         `, id,
 	)
 
+	// Make user domain
 	var user domain.User
 	if err := row.Scan(
 		&user.ID,
@@ -96,23 +98,29 @@ func (r *UserRepo) GetByID(ctx context.Context, id string) (*domain.User, error)
 }
 
 func (r *UserRepo) GetActiveTeamMembers(ctx context.Context, teamName string, except string) ([]domain.User, error) {
-	rows, err := r.db.Query(ctx,
-		`SELECT user_id, username, team_name, is_active
-         FROM users
-         WHERE team_name = $1
-           AND is_active = TRUE
-           AND user_id <> $2`,
-		teamName, except,
+	// Get active users
+	rows, err := r.db.Query(ctx, `
+		SELECT user_id, username, team_name, is_active
+        FROM users
+        WHERE team_name = $1
+          AND is_active = TRUE
+          AND user_id <> $2
+          `, teamName, except,
 	)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
+	// Make user domains
 	var list []domain.User
 	for rows.Next() {
 		var user domain.User
-		if err := rows.Scan(&user.ID, &user.Username, &user.TeamName, &user.IsActive); err != nil {
+		if err := rows.Scan(
+			&user.ID,
+			&user.Username,
+			&user.TeamName,
+			&user.IsActive); err != nil {
 			return nil, err
 		}
 		list = append(list, user)

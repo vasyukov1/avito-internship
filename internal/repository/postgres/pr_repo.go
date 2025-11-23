@@ -19,8 +19,9 @@ func NewPRRepo(db *pgxpool.Pool) *PRRepo {
 }
 
 func (r *PRRepo) Create(ctx context.Context, pr domain.PullRequest) error {
-	_, err := r.db.Exec(ctx,
-		`INSERT INTO pull_requests (
+	// Insert PR
+	_, err := r.db.Exec(ctx, `
+			INSERT INTO pull_requests (
             pull_request_id, pull_request_name, author_id, status, created_at
         ) VALUES ($1, $2, $3, $4, $5)`,
 		pr.ID,
@@ -30,6 +31,7 @@ func (r *PRRepo) Create(ctx context.Context, pr domain.PullRequest) error {
 		pr.CreatedAt,
 	)
 
+	// Check unique
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) {
@@ -43,6 +45,7 @@ func (r *PRRepo) Create(ctx context.Context, pr domain.PullRequest) error {
 }
 
 func (r *PRRepo) GetByUserID(ctx context.Context, userID string) ([]domain.PullRequest, error) {
+	// Get user
 	rows, err := r.db.Query(ctx, `
         SELECT pr.pull_request_id,
 			   pr.pull_request_name,
@@ -58,6 +61,7 @@ func (r *PRRepo) GetByUserID(ctx context.Context, userID string) ([]domain.PullR
 	}
 	defer rows.Close()
 
+	// Get PRs
 	var pullRequests []domain.PullRequest
 
 	for rows.Next() {
@@ -83,12 +87,14 @@ func (r *PRRepo) GetByUserID(ctx context.Context, userID string) ([]domain.PullR
 }
 
 func (r *PRRepo) GetByID(ctx context.Context, id string) (*domain.PullRequest, error) {
+	// Get PR
 	row := r.db.QueryRow(ctx, `
 		SELECT pull_request_id, pull_request_name, author_id, status, created_at, merged_at
 		FROM pull_requests
 		WHERE pull_request_id = $1
 	`, id)
 
+	// Make PR domain
 	var pr domain.PullRequest
 	err := row.Scan(&pr.ID, &pr.Name, &pr.AuthorID, &pr.Status, &pr.CreatedAt, &pr.MergedAt)
 	if err != nil {
@@ -127,11 +133,11 @@ func (r *PRRepo) GetByID(ctx context.Context, id string) (*domain.PullRequest, e
 func (r *PRRepo) AssignReviewers(ctx context.Context, prID string, reviewers []string) error {
 	batch := &pgx.Batch{}
 	for _, uid := range reviewers {
-		batch.Queue(
-			`INSERT INTO pull_request_shorts (pull_request_id, author_id)
+		batch.Queue(`
+			INSERT INTO pull_request_shorts (pull_request_id, author_id)
              VALUES ($1, $2)
-             ON CONFLICT DO NOTHING`,
-			prID, uid,
+             ON CONFLICT DO NOTHING
+		`, prID, uid,
 		)
 	}
 	br := r.db.SendBatch(ctx, batch)
@@ -234,7 +240,11 @@ func (r *PRRepo) getPRTx(ctx context.Context, tx pgx.Tx, prID string) (*domain.P
 		return nil, err
 	}
 
-	rows, err := tx.Query(ctx, `SELECT author_id FROM pull_request_shorts WHERE pull_request_id = $1`, prID)
+	rows, err := tx.Query(ctx, `
+		SELECT author_id 
+		FROM pull_request_shorts 
+		WHERE pull_request_id = $1
+	`, prID)
 	if err != nil {
 		return nil, err
 	}
