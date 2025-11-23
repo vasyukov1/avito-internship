@@ -36,9 +36,9 @@ type PullRequestShort struct {
 
 type PullRequestRepository interface {
 	Create(ctx context.Context, pr PullRequest) error
+	GetByID(ctx context.Context, id string) (*PullRequest, error)
 	GetByUserID(ctx context.Context, id string) ([]PullRequest, error)
 	AssignReviewers(ctx context.Context, prID string, reviewers []string) error
-	//Merge(ctx context.Context, prID string) (*PullRequest, error)
-	Reassign(ctx context.Context, prID, oldReviewerID, newReviewerID string) error
-	GetReviewList(ctx context.Context, userID string) ([]PullRequestShort, error)
+	Merge(ctx context.Context, prID string) (*PullRequest, error)
+	Reassign(ctx context.Context, prID, oldReviewerID string, newReviewerID string) (*PullRequest, error)
 }
