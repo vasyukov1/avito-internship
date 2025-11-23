@@ -2,6 +2,7 @@ package delivery
 
 import (
 	"avito-internship/internal/domain"
+	"avito-internship/internal/metrics"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 	"net/http"
@@ -55,6 +56,16 @@ func (tm *TeamMember) ToDomain(teamName string) domain.User {
 	}
 }
 
+func countActiveUsers(members []TeamMember) int {
+	count := 0
+	for _, member := range members {
+		if member.IsActive {
+			count++
+		}
+	}
+	return count
+}
+
 // CreateTeam godoc
 // @Summary Создать команду с участниками
 // @Description Создает новую команду и обновляет/создает пользователей. Если команда уже существует, возвращает ошибку.
@@ -75,6 +86,8 @@ func (h *Handler) CreateTeam(c *gin.Context) {
 			"error":  err.Error(),
 		}).Warn("Bad request for CreateTeam")
 
+		metrics.ErrorsTotal.WithLabelValues("bad_request", "create_team").Inc()
+
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": gin.H{
 				"code":    "BAD_REQUEST",
@@ -94,6 +107,7 @@ func (h *Handler) CreateTeam(c *gin.Context) {
 	// Create team in database
 	team := domain.Team{Name: req.Name}
 	if err := h.service.Storage().Team().CreateTeam(ctx, team); err != nil {
+		metrics.ErrorsTotal.WithLabelValues("creation_failed", "create_team").Inc()
 		h.logger.WithError(err).Error("Failed to create team in database")
 		h.handleError(c, err)
 		return
@@ -108,11 +122,17 @@ func (h *Handler) CreateTeam(c *gin.Context) {
 	// Save members in database
 	if len(members) > 0 {
 		if err := h.service.Storage().User().UpsertUsers(ctx, req.Name, members); err != nil {
+			metrics.ErrorsTotal.WithLabelValues("users_upsert_failed", "create_team").Inc()
 			h.logger.WithError(err).Error("Failed to upsert users in database")
 			h.handleError(c, err)
 			return
 		}
 	}
+
+	metrics.TeamsCreatedTotal.Inc()
+
+	activeUsersCount := countActiveUsers(req.Members)
+	metrics.UsersActiveTotal.WithLabelValues(req.Name).Set(float64(activeUsersCount))
 
 	h.logger.WithFields(logrus.Fields{
 		"team_name": req.Name,
@@ -142,6 +162,8 @@ func (h *Handler) GetTeam(c *gin.Context) {
 			"path":   c.Request.URL.Path,
 		}).Warn("team_name query parameter is missing")
 
+		metrics.ErrorsTotal.WithLabelValues("bad_request", "get_team").Inc()
+
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": gin.H{
 				"code":    "BAD_REQUEST",
@@ -159,6 +181,7 @@ func (h *Handler) GetTeam(c *gin.Context) {
 	ctx := c.Request.Context()
 	team, err := h.service.Storage().Team().GetTeam(ctx, teamName)
 	if err != nil {
+		metrics.ErrorsTotal.WithLabelValues("not_found", "get_team").Inc()
 		h.logger.WithError(err).Error("Failed to get team from database")
 		h.handleError(c, err)
 		return

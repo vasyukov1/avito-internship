@@ -2,9 +2,11 @@ package postgres
 
 import (
 	"avito-internship/internal/domain"
+	"avito-internship/internal/metrics"
 	"context"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/sirupsen/logrus"
+	"time"
 )
 
 type TeamRepo struct {
@@ -17,6 +19,12 @@ func NewTeamRepo(db *pgxpool.Pool, logger *logrus.Logger) *TeamRepo {
 }
 
 func (r *TeamRepo) CreateTeam(ctx context.Context, team domain.Team) error {
+	start := time.Now()
+	defer func() {
+		metrics.DBQueriesTotal.WithLabelValues("create_team").Inc()
+		metrics.DBQueryDuration.WithLabelValues("create_team").Observe(time.Since(start).Seconds())
+	}()
+
 	r.logger.WithFields(logrus.Fields{
 		"team_name": team.Name,
 	}).Debug("Creating team in database")
@@ -59,6 +67,12 @@ func (r *TeamRepo) CreateTeam(ctx context.Context, team domain.Team) error {
 }
 
 func (r *TeamRepo) GetTeam(ctx context.Context, name string) (*domain.Team, error) {
+	start := time.Now()
+	defer func() {
+		metrics.DBQueriesTotal.WithLabelValues("get_team").Inc()
+		metrics.DBQueryDuration.WithLabelValues("get_team").Observe(time.Since(start).Seconds())
+	}()
+
 	r.logger.WithFields(logrus.Fields{
 		"team_name": name,
 	}).Debug("Getting team from database")

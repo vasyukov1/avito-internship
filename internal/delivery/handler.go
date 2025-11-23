@@ -1,15 +1,15 @@
 package delivery
 
 import (
-	"avito-internship/internal/infrastructure"
+	"avito-internship/internal/usecase"
 	"github.com/sirupsen/logrus"
 )
 
 type Handler struct {
-	service *infrastructure.Server
+	service *usecase.Server
 	logger  *logrus.Logger
 }
 
-func NewHandler(service *infrastructure.Server, logger *logrus.Logger) *Handler {
+func NewHandler(service *usecase.Server, logger *logrus.Logger) *Handler {
 	return &Handler{service, logger}
 }

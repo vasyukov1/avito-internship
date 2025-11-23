@@ -1,7 +1,8 @@
-package infrastructure
+package usecase
 
 import (
 	"avito-internship/internal/domain"
+	"avito-internship/internal/metrics"
 	"avito-internship/internal/repository"
 	"context"
 	"errors"
@@ -30,6 +31,8 @@ func (s *Server) Storage() repository.Storage {
 }
 
 func (s *Server) CreatePullRequest(ctx context.Context, id string, name string, authorID string) (*domain.PullRequest, error) {
+	start := time.Now()
+
 	s.logger.WithFields(logrus.Fields{
 		"pull_request_id": id,
 		"name":            name,
@@ -39,6 +42,7 @@ func (s *Server) CreatePullRequest(ctx context.Context, id string, name string, 
 	author, err := s.storage.User().GetByID(ctx, authorID)
 	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
+			metrics.ErrorsTotal.WithLabelValues("user_not_found", "create_pr").Inc()
 			s.logger.WithFields(logrus.Fields{
 				"author_id": authorID,
 			}).Warn("Author not found")
@@ -95,20 +99,26 @@ func (s *Server) CreatePullRequest(ctx context.Context, id string, name string, 
 	}
 	updatedPR.Reviewers = assigned
 
+	metrics.PRCreatedTotal.WithLabelValues(author.TeamName).Inc()
+	metrics.DBQueriesTotal.WithLabelValues("create_pr").Inc()
+	metrics.DBQueryDuration.WithLabelValues("create_pr").Observe(time.Since(start).Seconds())
+
 	s.logger.WithFields(logrus.Fields{
 		"pull_request_id": id,
 	}).Info("Pull request created successfully")
-
 	return updatedPR, nil
 }
 
 func (s *Server) MergePullRequest(ctx context.Context, prID string) (*domain.PullRequest, error) {
+	start := time.Now()
+
 	s.logger.WithFields(logrus.Fields{
 		"pull_request_id": prID,
 	}).Debug("Merging pull request")
 
 	pr, err := s.storage.PullRequest().Merge(ctx, prID)
 	if err != nil {
+		metrics.ErrorsTotal.WithLabelValues("merge_failed", "merge_pr").Inc()
 		if errors.Is(err, domain.ErrNotFound) {
 			s.logger.WithFields(logrus.Fields{
 				"pull_request_id": prID,
@@ -118,6 +128,15 @@ func (s *Server) MergePullRequest(ctx context.Context, prID string) (*domain.Pul
 		s.logger.WithError(err).Error("Failed to merge pull request")
 		return nil, err
 	}
+
+	author, _ := s.storage.User().GetByID(ctx, pr.AuthorID)
+	if author != nil {
+		metrics.PRMergedTotal.WithLabelValues(author.TeamName).Inc()
+	}
+
+	metrics.DBQueriesTotal.WithLabelValues("merge_pr").Inc()
+	metrics.DBQueryDuration.WithLabelValues("merge_pr").Observe(time.Since(start).Seconds())
+
 	s.logger.WithFields(logrus.Fields{
 		"pull_request_id": prID,
 	}).Info("Pull request merged successfully")
@@ -125,6 +144,8 @@ func (s *Server) MergePullRequest(ctx context.Context, prID string) (*domain.Pul
 }
 
 func (s *Server) ReassignReviewer(ctx context.Context, prID, oldReviewerID string) (*domain.PullRequest, string, error) {
+	start := time.Now()
+
 	s.logger.WithFields(logrus.Fields{
 		"pull_request_id": prID,
 		"old_reviewer_id": oldReviewerID,
@@ -133,6 +154,7 @@ func (s *Server) ReassignReviewer(ctx context.Context, prID, oldReviewerID strin
 	// Get PR
 	pr, err := s.storage.PullRequest().GetByID(ctx, prID)
 	if err != nil {
+		metrics.ErrorsTotal.WithLabelValues("reassign_failed", "reassign_reviewer").Inc()
 		if errors.Is(err, domain.ErrNotFound) {
 			s.logger.WithFields(logrus.Fields{
 				"pull_request_id": prID,
@@ -220,6 +242,10 @@ func (s *Server) ReassignReviewer(ctx context.Context, prID, oldReviewerID strin
 		s.logger.WithError(err).Error("Failed to reassign reviewer in storage")
 		return nil, "", err
 	}
+
+	metrics.PRReassignedTotal.WithLabelValues(oldUser.TeamName).Inc()
+	metrics.DBQueriesTotal.WithLabelValues("reassign_reviewer").Inc()
+	metrics.DBQueryDuration.WithLabelValues("reassign_reviewer").Observe(time.Since(start).Seconds())
 
 	s.logger.WithFields(logrus.Fields{
 		"pull_request_id": prID,

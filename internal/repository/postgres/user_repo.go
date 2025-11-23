@@ -2,11 +2,13 @@ package postgres
 
 import (
 	"avito-internship/internal/domain"
+	"avito-internship/internal/metrics"
 	"context"
 	"errors"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/sirupsen/logrus"
+	"time"
 )
 
 type UserRepo struct {
@@ -19,6 +21,12 @@ func NewUserRepo(db *pgxpool.Pool, logger *logrus.Logger) *UserRepo {
 }
 
 func (r *UserRepo) UpsertUsers(ctx context.Context, teamName string, users []domain.User) error {
+	start := time.Now()
+	defer func() {
+		metrics.DBQueriesTotal.WithLabelValues("upsert_users").Inc()
+		metrics.DBQueryDuration.WithLabelValues("upsert_users").Observe(time.Since(start).Seconds())
+	}()
+
 	r.logger.WithFields(logrus.Fields{
 		"team_name": teamName,
 		"users":     len(users),
@@ -72,6 +80,12 @@ func (r *UserRepo) UpsertUsers(ctx context.Context, teamName string, users []dom
 }
 
 func (r *UserRepo) SetIsActive(ctx context.Context, userID string, active bool) (*domain.User, error) {
+	start := time.Now()
+	defer func() {
+		metrics.DBQueriesTotal.WithLabelValues("set_is_active").Inc()
+		metrics.DBQueryDuration.WithLabelValues("set_is_active").Observe(time.Since(start).Seconds())
+	}()
+
 	r.logger.WithFields(logrus.Fields{
 		"user_id":   userID,
 		"is_active": active,
@@ -105,6 +119,12 @@ func (r *UserRepo) SetIsActive(ctx context.Context, userID string, active bool) 
 }
 
 func (r *UserRepo) GetByID(ctx context.Context, id string) (*domain.User, error) {
+	start := time.Now()
+	defer func() {
+		metrics.DBQueriesTotal.WithLabelValues("get_user_by_id").Inc()
+		metrics.DBQueryDuration.WithLabelValues("get_user_by_id").Observe(time.Since(start).Seconds())
+	}()
+
 	r.logger.WithFields(logrus.Fields{
 		"user_id": id,
 	}).Debug("Getting user by ID from database")
@@ -142,6 +162,12 @@ func (r *UserRepo) GetByID(ctx context.Context, id string) (*domain.User, error)
 }
 
 func (r *UserRepo) GetActiveTeamMembers(ctx context.Context, teamName string, except string) ([]domain.User, error) {
+	start := time.Now()
+	defer func() {
+		metrics.DBQueriesTotal.WithLabelValues("get_active_team_members").Inc()
+		metrics.DBQueryDuration.WithLabelValues("get_active_team_members").Observe(time.Since(start).Seconds())
+	}()
+
 	r.logger.WithFields(logrus.Fields{
 		"team_name": teamName,
 		"except":    except,

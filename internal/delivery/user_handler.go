@@ -2,6 +2,7 @@ package delivery
 
 import (
 	"avito-internship/internal/domain"
+	"avito-internship/internal/metrics"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 	"net/http"
@@ -81,6 +82,8 @@ func (h *Handler) SetIsActive(c *gin.Context) {
 			"error":  err.Error(),
 		}).Warn("Bad request for SetIsActive")
 
+		metrics.ErrorsTotal.WithLabelValues("bad_request", "set_is_active").Inc()
+
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": gin.H{
 				"code":    "BAD_REQUEST",
@@ -102,9 +105,16 @@ func (h *Handler) SetIsActive(c *gin.Context) {
 		req.IsActive,
 	)
 	if err != nil {
+		metrics.ErrorsTotal.WithLabelValues("update_failed", "set_is_active").Inc()
 		h.logger.WithError(err).Error("Failed to set user active status")
 		h.handleError(c, err)
 		return
+	}
+
+	if req.IsActive {
+		metrics.UsersActiveTotal.WithLabelValues(user.TeamName).Inc()
+	} else {
+		metrics.UsersActiveTotal.WithLabelValues(user.TeamName).Dec()
 	}
 
 	h.logger.WithFields(logrus.Fields{
@@ -138,6 +148,8 @@ func (h *Handler) GetReview(c *gin.Context) {
 			"path":   c.Request.URL.Path,
 		}).Warn("user_id query parameter is missing")
 
+		metrics.ErrorsTotal.WithLabelValues("bad_request", "get_review").Inc()
+
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": gin.H{
 				"code":    "BAD_REQUEST",
@@ -154,6 +166,7 @@ func (h *Handler) GetReview(c *gin.Context) {
 	// Get user by id
 	rows, err := h.service.Storage().PullRequest().GetByUserID(c.Request.Context(), userID)
 	if err != nil {
+		metrics.ErrorsTotal.WithLabelValues("query_failed", "get_review").Inc()
 		h.logger.WithError(err).Error("Failed to get PRs by user ID")
 		h.handleError(c, err)
 		return
@@ -164,6 +177,8 @@ func (h *Handler) GetReview(c *gin.Context) {
 	for i, pr := range rows {
 		pullRequests[i] = ToResponse(pr)
 	}
+
+	metrics.UsersActiveTotal.WithLabelValues("review_assignment").Set(float64(len(pullRequests)))
 
 	h.logger.WithFields(logrus.Fields{
 		"user_id":   userID,

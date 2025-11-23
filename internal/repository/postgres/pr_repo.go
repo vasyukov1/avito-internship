@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"avito-internship/internal/domain"
+	"avito-internship/internal/metrics"
 	"context"
 	"errors"
 	"github.com/jackc/pgx/v5"
@@ -21,6 +22,12 @@ func NewPRRepo(db *pgxpool.Pool, logger *logrus.Logger) *PRRepo {
 }
 
 func (r *PRRepo) Create(ctx context.Context, pr domain.PullRequest) error {
+	start := time.Now()
+	defer func() {
+		metrics.DBQueriesTotal.WithLabelValues("create_pr").Inc()
+		metrics.DBQueryDuration.WithLabelValues("create_pr").Observe(time.Since(start).Seconds())
+	}()
+
 	r.logger.WithFields(logrus.Fields{
 		"pull_request_id": pr.ID,
 		"author_id":       pr.AuthorID,
@@ -60,6 +67,12 @@ func (r *PRRepo) Create(ctx context.Context, pr domain.PullRequest) error {
 }
 
 func (r *PRRepo) GetByUserID(ctx context.Context, userID string) ([]domain.PullRequest, error) {
+	start := time.Now()
+	defer func() {
+		metrics.DBQueriesTotal.WithLabelValues("get_pr_by_user_id").Inc()
+		metrics.DBQueryDuration.WithLabelValues("get_pr_by_user_id").Observe(time.Since(start).Seconds())
+	}()
+
 	r.logger.WithFields(logrus.Fields{
 		"user_id": userID,
 	}).Debug("Getting PRs by user ID")
@@ -115,6 +128,12 @@ func (r *PRRepo) GetByUserID(ctx context.Context, userID string) ([]domain.PullR
 }
 
 func (r *PRRepo) GetByID(ctx context.Context, id string) (*domain.PullRequest, error) {
+	start := time.Now()
+	defer func() {
+		metrics.DBQueriesTotal.WithLabelValues("get_pr_by_id").Inc()
+		metrics.DBQueryDuration.WithLabelValues("get_pr_by_id").Observe(time.Since(start).Seconds())
+	}()
+
 	r.logger.WithFields(logrus.Fields{
 		"pull_request_id": id,
 	}).Debug("Getting PR by ID")
@@ -176,6 +195,12 @@ func (r *PRRepo) GetByID(ctx context.Context, id string) (*domain.PullRequest, e
 }
 
 func (r *PRRepo) AssignReviewers(ctx context.Context, prID string, teamName string, authorID string, count int) ([]string, error) {
+	start := time.Now()
+	defer func() {
+		metrics.DBQueriesTotal.WithLabelValues("assign_reviewers").Inc()
+		metrics.DBQueryDuration.WithLabelValues("assign_reviewers").Observe(time.Since(start).Seconds())
+	}()
+
 	r.logger.WithFields(logrus.Fields{
 		"pr_id":     prID,
 		"team":      teamName,
@@ -318,6 +343,12 @@ func (r *PRRepo) AssignReviewers(ctx context.Context, prID string, teamName stri
 }
 
 func (r *PRRepo) Merge(ctx context.Context, prID string) (*domain.PullRequest, error) {
+	start := time.Now()
+	defer func() {
+		metrics.DBQueriesTotal.WithLabelValues("merge").Inc()
+		metrics.DBQueryDuration.WithLabelValues("merge").Observe(time.Since(start).Seconds())
+	}()
+
 	r.logger.WithFields(logrus.Fields{
 		"pull_request_id": prID,
 	}).Debug("Merging PR in database")
@@ -382,6 +413,12 @@ func (r *PRRepo) Merge(ctx context.Context, prID string) (*domain.PullRequest, e
 }
 
 func (r *PRRepo) Reassign(ctx context.Context, prID, oldReviewerID, newReviewerID string) (*domain.PullRequest, error) {
+	start := time.Now()
+	defer func() {
+		metrics.DBQueriesTotal.WithLabelValues("reassign").Inc()
+		metrics.DBQueryDuration.WithLabelValues("reassign").Observe(time.Since(start).Seconds())
+	}()
+
 	r.logger.WithFields(logrus.Fields{
 		"pull_request_id": prID,
 		"old_reviewer_id": oldReviewerID,

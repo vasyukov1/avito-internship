@@ -2,6 +2,7 @@ package delivery
 
 import (
 	"avito-internship/internal/domain"
+	"avito-internship/internal/metrics"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 	"net/http"
@@ -75,6 +76,8 @@ func (h *Handler) CreatePR(c *gin.Context) {
 			"error":  err.Error(),
 		}).Warn("Bad request for CreatePR")
 
+		metrics.ErrorsTotal.WithLabelValues("bad_request", "create_pr").Inc()
+
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": gin.H{
 				"code":    "BAD_REQUEST",
@@ -99,6 +102,11 @@ func (h *Handler) CreatePR(c *gin.Context) {
 	if err != nil {
 		h.handleError(c, err)
 		return
+	}
+
+	author, err := h.service.Storage().User().GetByID(c.Request.Context(), req.AuthorID)
+	if err == nil && author != nil {
+		metrics.PRCreatedTotal.WithLabelValues(author.TeamName).Inc()
 	}
 
 	h.logger.WithFields(logrus.Fields{
@@ -133,6 +141,8 @@ func (h *Handler) MergePR(c *gin.Context) {
 			"error":  err.Error(),
 		}).Warn("Bad request for MergePR")
 
+		metrics.ErrorsTotal.WithLabelValues("bad_request", "merge_pr").Inc()
+
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": gin.H{
 				"code":    "BAD_REQUEST",
@@ -151,6 +161,11 @@ func (h *Handler) MergePR(c *gin.Context) {
 	if err != nil {
 		h.handleError(c, err)
 		return
+	}
+
+	author, err := h.service.Storage().User().GetByID(c.Request.Context(), pr.AuthorID)
+	if err == nil && author != nil {
+		metrics.PRMergedTotal.WithLabelValues(author.TeamName).Inc()
 	}
 
 	h.logger.WithFields(logrus.Fields{
@@ -186,6 +201,8 @@ func (h *Handler) Reassign(c *gin.Context) {
 			"error":  err.Error(),
 		}).Warn("Bad request for Reassign")
 
+		metrics.ErrorsTotal.WithLabelValues("bad_request", "reassign_reviewer").Inc()
+
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": gin.H{
 				"code":    "BAD_REQUEST",
@@ -209,6 +226,11 @@ func (h *Handler) Reassign(c *gin.Context) {
 	if err != nil {
 		h.handleError(c, err)
 		return
+	}
+
+	oldReviewer, err := h.service.Storage().User().GetByID(c.Request.Context(), req.OldReviewerID)
+	if err == nil && oldReviewer != nil {
+		metrics.PRReassignedTotal.WithLabelValues(oldReviewer.TeamName).Inc()
 	}
 
 	h.logger.WithFields(logrus.Fields{

@@ -1,4 +1,4 @@
-.PHONY: build run up down logs fmt lint test migrate-up migrate-down migrate-force
+.PHONY: build run up down logs fmt lint test migrate-up migrate-down migrate-force monitoring
 
 include .env
 export $(shell sed 's/=.*//' .env)
@@ -29,3 +29,19 @@ down:
 
 logs:
 	docker-compose logs -f app
+
+monitoring:
+	docker-compose up -d prometheus grafana
+
+monitoring-logs:
+	docker-compose logs -f prometheus grafana
+
+monitoring-stop:
+	docker-compose stop prometheus grafana
+
+full-up:
+	docker-compose up -d
+	@echo "Application: http://localhost:8080"
+	@echo "Swagger: http://localhost:8080/swagger/index.html"
+	@echo "Prometheus: http://localhost:9090"
+	@echo "Grafana: http://localhost:3000 (admin/admin)"
