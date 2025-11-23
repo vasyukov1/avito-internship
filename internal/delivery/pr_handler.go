@@ -45,7 +45,7 @@ func (h *Handler) RegisterPRRoutes(r *gin.Engine) {
 	{
 		pr.POST("/create", h.CreatePR)
 		pr.POST("/merge", h.MergePR)
-		pr.POST("/reassign", h.ReassignReviewer)
+		pr.POST("/reassign", h.Reassign)
 	}
 }
 
@@ -56,22 +56,34 @@ func (h *Handler) RegisterPRRoutes(r *gin.Engine) {
 // @Accept json
 // @Produce json
 // @Param request body CreatePRRequest true "Данные для создания пул-реквеста"
-// @Success 201 {object} CreatePRResponse "PR успешно создан"
-// @Failure 400 {object} ErrorResponse "Некорректные данные"
-// @Failure 404 {object} ErrorResponse "Автор или команда не найдены"
-// @Failure 409 {object} ErrorResponse "PR с таким ID уже существует"
+// @Success 201 {object} CreatePRResponse "PR создан"
+// @Failure 400 {object} ErrorResponse "Некорректные данные запроса"
+// @Failure 404 {object} ErrorResponse "Автор/команда не найдены"
+// @Failure 409 {object} ErrorResponse "PR уже существует"
 // @Failure 500 {object} ErrorResponse "Внутренняя ошибка сервера"
 // @Router /pullRequest/create [post]
 // @Example request {"pull_request_id": "pr-1001", "pull_request_name": "Add search", "author_id": "u1"}
 // @Example response 201 {"pull_request": {"pull_request_id": "pr-1001", "pull_request_name": "Add search", "author_id": "u1", "status": "OPEN", "assigned_reviewers": ["u2", "u3"], "createdAt": "2025-01-15T10:30:00Z", "mergedAt": null}}
 func (h *Handler) CreatePR(c *gin.Context) {
+	// Get PR info
 	var req CreatePRRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "BAD_REQUEST", "message": err.Error()}})
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": gin.H{
+				"code":    "BAD_REQUEST",
+				"message": err.Error(),
+			},
+		})
 		return
 	}
 
-	pr, err := h.service.CreatePullRequest(c.Request.Context(), req.PullRequestID, req.Name, req.AuthorID)
+	// Create PR
+	pr, err := h.service.CreatePullRequest(
+		c.Request.Context(),
+		req.PullRequestID,
+		req.Name,
+		req.AuthorID,
+	)
 	if err != nil {
 		h.handleError(c, err)
 		return
@@ -95,12 +107,19 @@ func (h *Handler) CreatePR(c *gin.Context) {
 // @Example request {"pull_request_id": "pr-1001"}
 // @Example response 200 {"pull_request": {"pull_request_id": "pr-1001", "pull_request_name": "Add search", "author_id": "u1", "status": "MERGED", "assigned_reviewers": ["u2", "u3"], "createdAt": "2025-01-15T10:30:00Z", "mergedAt": "2025-10-24T12:34:56Z"}}
 func (h *Handler) MergePR(c *gin.Context) {
+	// Get PR
 	var req MergePRRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "BAD_REQUEST", "message": err.Error()}})
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": gin.H{
+				"code":    "BAD_REQUEST",
+				"message": err.Error(),
+			},
+		})
 		return
 	}
 
+	// Merge PR
 	pr, err := h.service.MergePullRequest(c.Request.Context(), req.PullRequestID)
 	if err != nil {
 		h.handleError(c, err)
@@ -110,7 +129,7 @@ func (h *Handler) MergePR(c *gin.Context) {
 	c.JSON(http.StatusOK, CreatePRResponse{PullRequest: *pr})
 }
 
-// ReassignReviewer godoc
+// Reassign godoc
 // @Summary Переназначить ревьювера на другого члена команды
 // @Description Заменяет одного ревьювера в PR на другого активного пользователя из команды автора. Для закрытых или MERGED PR переназначение запрещено.
 // @Tags PullRequests
@@ -125,14 +144,20 @@ func (h *Handler) MergePR(c *gin.Context) {
 // @Router /pullRequest/reassign [post]
 // @Example request {"pull_request_id": "pr-1001", "old_reviewer_id": "u2"}
 // @Example response 200 {"pr": {"pull_request_id": "pr-1001","pull_request_name":"Add search","author_id":"u1","status":"OPEN","assigned_reviewers":["u3","u4"],"createdAt":"2025-01-15T10:30:00Z","mergedAt":null}, "replaced_by": "u7"}
-func (h *Handler) ReassignReviewer(c *gin.Context) {
+func (h *Handler) Reassign(c *gin.Context) {
+	// Get PR info
 	var req ReassignReviewerRequest
-
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "BAD_REQUEST", "message": err.Error()}})
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": gin.H{
+				"code":    "BAD_REQUEST",
+				"message": err.Error(),
+			},
+		})
 		return
 	}
 
+	// Update PR
 	pr, newReviewer, err := h.service.ReassignReviewer(
 		c.Request.Context(),
 		req.PullRequestID,

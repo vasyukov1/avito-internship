@@ -66,11 +66,12 @@ func ToResponse(pr domain.PullRequest) PullRequestResponse {
 // @Produce json
 // @Param request body SetActiveRequest true "Данные для обновления активности пользователя"
 // @Success 200 {object} UserResponse "Обновлённый пользователь"
-// @Failure 400 {object} ErrorResponse "Неверный запрос"
+// @Failure 400 {object} ErrorResponse "Некорректные данные запроса"
 // @Failure 404 {object} ErrorResponse "Пользователь не найден"
 // @Failure 500 {object} ErrorResponse "Внутренняя ошибка сервера"
 // @Router /users/setIsActive [post]
 func (h *Handler) SetIsActive(c *gin.Context) {
+	// Get user request
 	var req SetActiveRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -82,7 +83,12 @@ func (h *Handler) SetIsActive(c *gin.Context) {
 		return
 	}
 
-	user, err := h.service.Storage().User().SetIsActive(c.Request.Context(), req.UserID, req.IsActive)
+	// Update user activity
+	user, err := h.service.Storage().User().SetIsActive(
+		c.Request.Context(),
+		req.UserID,
+		req.IsActive,
+	)
 	if err != nil {
 		h.handleError(c, err)
 		return
@@ -101,11 +107,12 @@ func (h *Handler) SetIsActive(c *gin.Context) {
 // @Produce json
 // @Param user_id query string true "Идентификатор пользователя" example("u2")
 // @Success 200 {object} PRbyUserResponse "Список PR'ов пользователя"
-// @Failure 400 {object} ErrorResponse "Не указан user_id"
+// @Failure 400 {object} ErrorResponse "Некорректные данные запроса"
 // @Failure 404 {object} ErrorResponse "Пользователь не найден"
 // @Failure 500 {object} ErrorResponse "Внутренняя ошибка сервера"
 // @Router /users/getReview [get]
 func (h *Handler) GetReview(c *gin.Context) {
+	// Get user id
 	userID := c.Query("user_id")
 	if userID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -117,12 +124,14 @@ func (h *Handler) GetReview(c *gin.Context) {
 		return
 	}
 
+	// Get user by id
 	rows, err := h.service.Storage().PullRequest().GetByUserID(c.Request.Context(), userID)
 	if err != nil {
 		h.handleError(c, err)
 		return
 	}
 
+	// Get user's PRs
 	pullRequests := make([]PullRequestResponse, len(rows))
 	for i, pr := range rows {
 		pullRequests[i] = ToResponse(pr)
