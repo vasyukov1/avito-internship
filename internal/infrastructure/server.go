@@ -74,7 +74,7 @@ func (s *Server) CreatePullRequest(ctx context.Context, id string, name string, 
 		Name:      name,
 		AuthorID:  authorID,
 		Status:    domain.PROpen,
-		Reviewers: reviewers,
+		Reviewers: []string{},
 		CreatedAt: now,
 	}
 
@@ -83,18 +83,23 @@ func (s *Server) CreatePullRequest(ctx context.Context, id string, name string, 
 		return nil, err
 	}
 
-	if len(reviewers) > 0 {
-		if err := s.storage.PullRequest().AssignReviewers(ctx, pr.ID, reviewers); err != nil {
-			s.logger.WithError(err).Error("Failed to assign reviewers")
-			return nil, err
-		}
+	assigned, err := s.storage.PullRequest().AssignReviewers(ctx, pr.ID, author.TeamName, authorID, 2)
+	if err != nil {
+		s.logger.WithError(err).Error("Failed to assign reviewers")
+		return nil, err
 	}
+
+	updatedPR, err := s.storage.PullRequest().GetByID(ctx, pr.ID)
+	if err != nil {
+		return nil, err
+	}
+	updatedPR.Reviewers = assigned
 
 	s.logger.WithFields(logrus.Fields{
 		"pull_request_id": id,
 	}).Info("Pull request created successfully")
 
-	return &pr, nil
+	return updatedPR, nil
 }
 
 func (s *Server) MergePullRequest(ctx context.Context, prID string) (*domain.PullRequest, error) {

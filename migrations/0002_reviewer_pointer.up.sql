@@ -1,0 +1,4 @@
+CREATE TABLE IF NOT EXISTS reviewer_pointer (
+    id INTEGER PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+    last_index INTEGER NOT NULL
+);

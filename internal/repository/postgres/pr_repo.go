@@ -175,43 +175,146 @@ func (r *PRRepo) GetByID(ctx context.Context, id string) (*domain.PullRequest, e
 	return &pr, nil
 }
 
-func (r *PRRepo) AssignReviewers(ctx context.Context, prID string, reviewers []string) error {
+func (r *PRRepo) AssignReviewers(ctx context.Context, prID string, teamName string, authorID string, count int) ([]string, error) {
 	r.logger.WithFields(logrus.Fields{
-		"pull_request_id": prID,
-		"reviewers":       reviewers,
-	}).Debug("Assigning reviewers to PR")
+		"pr_id":     prID,
+		"team":      teamName,
+		"author_id": authorID,
+		"count":     count,
+	}).Debug("Assigning reviewers")
 
+	// Start tx
 	tx, err := r.db.Begin(ctx)
 	if err != nil {
-		r.logger.WithError(err).Error("Failed to begin transaction for assigning reviewers")
-		return err
+		r.logger.WithError(err).Error("Failed to begin tx for AssignReviewers")
+		return nil, err
 	}
 	defer func() {
 		_ = tx.Rollback(ctx)
 	}()
 
+	// Get active team members
+	rows, err := tx.Query(ctx, `
+		SELECT user_id
+		FROM users
+		WHERE team_name = $1
+		  AND is_active = TRUE
+		  AND user_id <> $2
+		ORDER BY user_id
+	`, teamName, authorID)
+	if err != nil {
+		r.logger.WithError(err).Error("Failed to query team members")
+		return nil, err
+	}
+	defer rows.Close()
+
+	var members []string
+	for rows.Next() {
+		var uid string
+		if err := rows.Scan(&uid); err != nil {
+			return nil, err
+		}
+		members = append(members, uid)
+	}
+	if rows.Err() != nil {
+		return nil, rows.Err()
+	}
+
+	r.logger.WithFields(logrus.Fields{
+		"team_members": members,
+		"count":        len(members),
+	}).Debug("Active team members")
+
+	if len(members) == 0 {
+		r.logger.Warn("No active members, skipping reviewer assignment")
+		_ = tx.Commit(ctx)
+		return []string{}, nil
+	}
+
+	// Lock pointer row
+	var lastIndex int
+	err = tx.QueryRow(ctx, `
+		SELECT last_index 
+		FROM reviewer_pointer 
+		WHERE id = 1 
+		FOR UPDATE
+	`).Scan(&lastIndex)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			r.logger.Warn("Pointer not found, creating")
+
+			_, err = tx.Exec(ctx, `
+				INSERT INTO reviewer_pointer (id, last_index) 
+				VALUES (1, 0)
+			`)
+			if err != nil {
+				r.logger.WithError(err).Error("Failed to insert reviewer pointer")
+				return nil, err
+			}
+			lastIndex = 0
+		} else {
+			r.logger.WithError(err).Error("Failed to lock reviewer pointer")
+			return nil, err
+		}
+	}
+
+	r.logger.WithFields(logrus.Fields{
+		"last_index_before": lastIndex,
+	}).Debug("Locked reviewer pointer")
+
+	// Pick up to count members starting from (lastIndex + 1)
+	n := len(members)
+	limit := min(count, n)
+
+	selected := make([]string, 0, limit)
+	for i := 0; i < limit; i++ {
+		idx := (lastIndex + 1 + i) % n
+		selected = append(selected, members[idx])
+	}
+
+	r.logger.WithFields(logrus.Fields{
+		"selected_reviewers": selected,
+	}).Debug("Selected reviewers")
+
+	// Update pointer
+	newLast := (lastIndex + len(selected)) % n
+	_, err = tx.Exec(ctx, `
+		UPDATE reviewer_pointer 
+		SET last_index = $1 
+		WHERE id = 1
+	`, newLast)
+	if err != nil {
+		r.logger.WithError(err).Error("Failed to update reviewer pointer")
+		return nil, err
+	}
+
+	r.logger.WithFields(logrus.Fields{
+		"new_last_index": newLast,
+	}).Debug("Updated reviewer pointer")
+
+	// Insert selected reviewers into pull_request_shorts
 	stmt := `
 		INSERT INTO pull_request_shorts (pull_request_id, author_id) 
 		VALUES ($1, $2) 
 		ON CONFLICT DO NOTHING
 	`
-	for _, uid := range reviewers {
+	for _, uid := range selected {
 		if _, err := tx.Exec(ctx, stmt, prID, uid); err != nil {
-			r.logger.WithError(err).Error("Failed to assign reviewer")
-			return err
+			r.logger.WithError(err).Error("Failed to insert reviewer")
+			return nil, err
 		}
 	}
 
 	if err := tx.Commit(ctx); err != nil {
-		r.logger.WithError(err).Error("Failed to commit transaction for assigning reviewers")
-		return err
+		r.logger.WithError(err).Error("Failed to commit reviewer assignment")
+		return nil, err
 	}
 
 	r.logger.WithFields(logrus.Fields{
-		"pull_request_id": prID,
-		"reviewers":       reviewers,
-	}).Debug("Reviewers assigned successfully")
-	return nil
+		"assigned_reviewers": selected,
+	}).Info("Reviewer assignment completed")
+
+	return selected, nil
 }
 
 func (r *PRRepo) Merge(ctx context.Context, prID string) (*domain.PullRequest, error) {
