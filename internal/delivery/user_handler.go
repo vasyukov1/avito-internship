@@ -3,6 +3,7 @@ package delivery
 import (
 	"avito-internship/internal/domain"
 	"github.com/gin-gonic/gin"
+	"github.com/sirupsen/logrus"
 	"net/http"
 )
 
@@ -74,6 +75,12 @@ func (h *Handler) SetIsActive(c *gin.Context) {
 	// Get user request
 	var req SetActiveRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
+		h.logger.WithFields(logrus.Fields{
+			"method": c.Request.Method,
+			"path":   c.Request.URL.Path,
+			"error":  err.Error(),
+		}).Warn("Bad request for SetIsActive")
+
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": gin.H{
 				"code":    "BAD_REQUEST",
@@ -83,6 +90,11 @@ func (h *Handler) SetIsActive(c *gin.Context) {
 		return
 	}
 
+	h.logger.WithFields(logrus.Fields{
+		"user_id":   req.UserID,
+		"is_active": req.IsActive,
+	}).Info("Setting user active status")
+
 	// Update user activity
 	user, err := h.service.Storage().User().SetIsActive(
 		c.Request.Context(),
@@ -90,9 +102,15 @@ func (h *Handler) SetIsActive(c *gin.Context) {
 		req.IsActive,
 	)
 	if err != nil {
+		h.logger.WithError(err).Error("Failed to set user active status")
 		h.handleError(c, err)
 		return
 	}
+
+	h.logger.WithFields(logrus.Fields{
+		"user_id":   req.UserID,
+		"is_active": req.IsActive,
+	}).Info("User active status updated successfully")
 
 	c.JSON(http.StatusOK, gin.H{
 		"user": user,
@@ -115,6 +133,11 @@ func (h *Handler) GetReview(c *gin.Context) {
 	// Get user id
 	userID := c.Query("user_id")
 	if userID == "" {
+		h.logger.WithFields(logrus.Fields{
+			"method": c.Request.Method,
+			"path":   c.Request.URL.Path,
+		}).Warn("user_id query parameter is missing")
+
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": gin.H{
 				"code":    "BAD_REQUEST",
@@ -124,9 +147,14 @@ func (h *Handler) GetReview(c *gin.Context) {
 		return
 	}
 
+	h.logger.WithFields(logrus.Fields{
+		"user_id": userID,
+	}).Debug("Getting PRs for user")
+
 	// Get user by id
 	rows, err := h.service.Storage().PullRequest().GetByUserID(c.Request.Context(), userID)
 	if err != nil {
+		h.logger.WithError(err).Error("Failed to get PRs by user ID")
 		h.handleError(c, err)
 		return
 	}
@@ -136,6 +164,11 @@ func (h *Handler) GetReview(c *gin.Context) {
 	for i, pr := range rows {
 		pullRequests[i] = ToResponse(pr)
 	}
+
+	h.logger.WithFields(logrus.Fields{
+		"user_id":   userID,
+		"prs_count": len(pullRequests),
+	}).Debug("PRs retrieved successfully")
 
 	c.JSON(http.StatusOK, PRbyUserResponse{UserID: userID, PullRequests: pullRequests})
 }

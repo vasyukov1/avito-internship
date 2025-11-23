@@ -8,6 +8,7 @@ import (
 type Config struct {
 	Port        string
 	DatabaseURL string
+	LogLevel    string
 }
 
 func Load() *Config {
@@ -16,6 +17,7 @@ func Load() *Config {
 	user := os.Getenv("DB_USER")
 	pass := os.Getenv("DB_PASSWORD")
 	name := os.Getenv("DB_NAME")
+	logLevel := os.Getenv("LOG_LEVEL")
 
 	dbURL := os.Getenv("DATABASE_URL")
 	if dbURL == "" {
@@ -28,6 +30,7 @@ func Load() *Config {
 	return &Config{
 		Port:        getEnv("PORT", ":8080"),
 		DatabaseURL: dbURL,
+		LogLevel:    logLevel,
 	}
 }
 

@@ -4,17 +4,23 @@ import (
 	"avito-internship/internal/domain"
 	"context"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/sirupsen/logrus"
 )
 
 type TeamRepo struct {
-	db *pgxpool.Pool
+	db     *pgxpool.Pool
+	logger *logrus.Logger
 }
 
-func NewTeamRepo(db *pgxpool.Pool) *TeamRepo {
-	return &TeamRepo{db: db}
+func NewTeamRepo(db *pgxpool.Pool, logger *logrus.Logger) *TeamRepo {
+	return &TeamRepo{db, logger}
 }
 
 func (r *TeamRepo) CreateTeam(ctx context.Context, team domain.Team) error {
+	r.logger.WithFields(logrus.Fields{
+		"team_name": team.Name,
+	}).Debug("Creating team in database")
+
 	// Check team existing
 	var exists bool
 	err := r.db.QueryRow(ctx, `
@@ -25,9 +31,13 @@ func (r *TeamRepo) CreateTeam(ctx context.Context, team domain.Team) error {
 		)`, team.Name,
 	).Scan(&exists)
 	if err != nil {
+		r.logger.WithError(err).Error("Failed to check team existence")
 		return err
 	}
 	if exists {
+		r.logger.WithFields(logrus.Fields{
+			"team_name": team.Name,
+		}).Warn("Team already exists")
 		return domain.ErrTeamExists
 	}
 
@@ -36,10 +46,23 @@ func (r *TeamRepo) CreateTeam(ctx context.Context, team domain.Team) error {
 		INSERT INTO teams (team_name) VALUES ($1)
 		`, team.Name,
 	)
+	if err != nil {
+		r.logger.WithError(err).Error("Failed to insert team into database")
+		return err
+	}
+
+	r.logger.WithFields(logrus.Fields{
+		"team_name": team.Name,
+	}).Debug("Team created in database")
+
 	return err
 }
 
 func (r *TeamRepo) GetTeam(ctx context.Context, name string) (*domain.Team, error) {
+	r.logger.WithFields(logrus.Fields{
+		"team_name": name,
+	}).Debug("Getting team from database")
+
 	// Check team existing
 	var exists bool
 	err := r.db.QueryRow(ctx, `
@@ -50,9 +73,13 @@ func (r *TeamRepo) GetTeam(ctx context.Context, name string) (*domain.Team, erro
 		)`, name,
 	).Scan(&exists)
 	if err != nil {
+		r.logger.WithError(err).Error("Failed to check team existence")
 		return nil, err
 	}
 	if !exists {
+		r.logger.WithFields(logrus.Fields{
+			"team_name": name,
+		}).Warn("Team not found")
 		return nil, domain.ErrNotFound
 	}
 
@@ -67,6 +94,7 @@ func (r *TeamRepo) GetTeam(ctx context.Context, name string) (*domain.Team, erro
 		`, name,
 	)
 	if err != nil {
+		r.logger.WithError(err).Error("Failed to query team members")
 		return nil, err
 	}
 	defer rows.Close()
@@ -75,11 +103,16 @@ func (r *TeamRepo) GetTeam(ctx context.Context, name string) (*domain.Team, erro
 	for rows.Next() {
 		var user domain.User
 		if err := rows.Scan(&user.ID, &user.Username, &user.IsActive); err != nil {
+			r.logger.WithError(err).Error("Failed to scan team member")
 			return nil, err
 		}
 		user.TeamName = name
 		team.Members = append(team.Members, user)
 	}
 
+	r.logger.WithFields(logrus.Fields{
+		"team_name": name,
+		"members":   len(team.Members),
+	}).Debug("Team retrieved from database")
 	return &team, nil
 }

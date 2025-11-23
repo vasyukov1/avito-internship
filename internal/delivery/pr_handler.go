@@ -3,6 +3,7 @@ package delivery
 import (
 	"avito-internship/internal/domain"
 	"github.com/gin-gonic/gin"
+	"github.com/sirupsen/logrus"
 	"net/http"
 )
 
@@ -68,6 +69,12 @@ func (h *Handler) CreatePR(c *gin.Context) {
 	// Get PR info
 	var req CreatePRRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
+		h.logger.WithFields(logrus.Fields{
+			"method": c.Request.Method,
+			"path":   c.Request.URL.Path,
+			"error":  err.Error(),
+		}).Warn("Bad request for CreatePR")
+
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": gin.H{
 				"code":    "BAD_REQUEST",
@@ -76,6 +83,11 @@ func (h *Handler) CreatePR(c *gin.Context) {
 		})
 		return
 	}
+
+	h.logger.WithFields(logrus.Fields{
+		"pull_request_id": req.PullRequestID,
+		"author_id":       req.AuthorID,
+	}).Info("Creating pull request")
 
 	// Create PR
 	pr, err := h.service.CreatePullRequest(
@@ -88,6 +100,11 @@ func (h *Handler) CreatePR(c *gin.Context) {
 		h.handleError(c, err)
 		return
 	}
+
+	h.logger.WithFields(logrus.Fields{
+		"pull_request_id": pr.ID,
+		"reviewers":       pr.Reviewers,
+	}).Info("Pull request created successfully")
 
 	c.JSON(http.StatusCreated, CreatePRResponse{PullRequest: *pr})
 }
@@ -110,6 +127,12 @@ func (h *Handler) MergePR(c *gin.Context) {
 	// Get PR
 	var req MergePRRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
+		h.logger.WithFields(logrus.Fields{
+			"method": c.Request.Method,
+			"path":   c.Request.URL.Path,
+			"error":  err.Error(),
+		}).Warn("Bad request for MergePR")
+
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": gin.H{
 				"code":    "BAD_REQUEST",
@@ -119,12 +142,21 @@ func (h *Handler) MergePR(c *gin.Context) {
 		return
 	}
 
+	h.logger.WithFields(logrus.Fields{
+		"pull_request_id": req.PullRequestID,
+	}).Info("Merging pull request")
+
 	// Merge PR
 	pr, err := h.service.MergePullRequest(c.Request.Context(), req.PullRequestID)
 	if err != nil {
 		h.handleError(c, err)
 		return
 	}
+
+	h.logger.WithFields(logrus.Fields{
+		"pull_request_id": pr.ID,
+		"status":          pr.Status,
+	}).Info("Pull request merged successfully")
 
 	c.JSON(http.StatusOK, CreatePRResponse{PullRequest: *pr})
 }
@@ -148,6 +180,12 @@ func (h *Handler) Reassign(c *gin.Context) {
 	// Get PR info
 	var req ReassignReviewerRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
+		h.logger.WithFields(logrus.Fields{
+			"method": c.Request.Method,
+			"path":   c.Request.URL.Path,
+			"error":  err.Error(),
+		}).Warn("Bad request for Reassign")
+
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": gin.H{
 				"code":    "BAD_REQUEST",
@@ -156,6 +194,11 @@ func (h *Handler) Reassign(c *gin.Context) {
 		})
 		return
 	}
+
+	h.logger.WithFields(logrus.Fields{
+		"pull_request_id": req.PullRequestID,
+		"old_reviewer_id": req.OldReviewerID,
+	}).Info("Reassigning reviewer")
 
 	// Update PR
 	pr, newReviewer, err := h.service.ReassignReviewer(
@@ -167,6 +210,12 @@ func (h *Handler) Reassign(c *gin.Context) {
 		h.handleError(c, err)
 		return
 	}
+
+	h.logger.WithFields(logrus.Fields{
+		"pull_request_id": pr.ID,
+		"old_reviewer":    req.OldReviewerID,
+		"new_reviewer":    newReviewer,
+	}).Info("Reviewer reassigned successfully")
 
 	c.JSON(http.StatusOK, ReassignReviewerResponse{PullRequest: *pr, ReplacedBy: newReviewer})
 }

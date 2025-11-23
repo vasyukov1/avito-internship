@@ -4,6 +4,7 @@ import (
 	"avito-internship/internal/domain"
 	"avito-internship/internal/repository/postgres"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/sirupsen/logrus"
 )
 
 type Storage interface {
@@ -18,11 +19,11 @@ type pgStorage struct {
 	pullRequest domain.PullRequestRepository
 }
 
-func NewPgStorage(db *pgxpool.Pool) Storage {
+func NewPgStorage(db *pgxpool.Pool, logger *logrus.Logger) Storage {
 	return &pgStorage{
-		team:        postgres.NewTeamRepo(db),
-		user:        postgres.NewUserRepo(db),
-		pullRequest: postgres.NewPRRepo(db),
+		team:        postgres.NewTeamRepo(db, logger),
+		user:        postgres.NewUserRepo(db, logger),
+		pullRequest: postgres.NewPRRepo(db, logger),
 	}
 }
 

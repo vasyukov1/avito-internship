@@ -5,10 +5,12 @@ import (
 	"avito-internship/internal/config"
 	"avito-internship/internal/delivery"
 	"avito-internship/internal/infrastructure"
+	"avito-internship/internal/logger"
 	"avito-internship/internal/repository"
 	"context"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"log"
+	"github.com/sirupsen/logrus"
+	"os"
 )
 
 // @title PR Service
@@ -22,27 +24,36 @@ func main() {
 	ctx := context.Background()
 
 	cfg := config.Load()
+	logger.Init(cfg.LogLevel)
+	logger.Log.WithFields(logrus.Fields{
+		"port":    cfg.Port,
+		"db_host": os.Getenv("DB_HOST"),
+	}).Info("Configuration loaded")
 
 	// Database setup
 	dbPool, err := pgxpool.New(ctx, cfg.DatabaseURL)
 	if err != nil {
-		log.Fatal("DB connection failed:", err)
+		logger.Log.WithError(err).Fatal("DB connection failed")
 	}
 	defer dbPool.Close()
 
 	if err := dbPool.Ping(ctx); err != nil {
-		log.Fatal("DB ping failed:", err)
+		logger.Log.WithError(err).Fatal("DB ping failed")
 	}
 
-	storage := repository.NewPgStorage(dbPool)
-	service := infrastructure.NewServer(storage)
-	handler := delivery.NewHandler(service)
+	logger.Log.Info("Database connection established")
+
+	storage := repository.NewPgStorage(dbPool, logger.Log)
+	service := infrastructure.NewServer(storage, logger.Log)
+	handler := delivery.NewHandler(service, logger.Log)
 	router := delivery.NewRouter(handler)
 
-	log.Printf("Starting HTTP server on %s\n", cfg.Port)
-	log.Printf("Swagger: http://localhost%s/swagger/index.html\n", cfg.Port)
+	logger.Log.WithFields(logrus.Fields{
+		"port":    cfg.Port,
+		"swagger": "http://localhost" + cfg.Port + "/swagger/index.html",
+	}).Info("Starting HTTP server")
 
 	if err := router.Run(cfg.Port); err != nil {
-		log.Fatalf("server failed: %v", err)
+		logger.Log.WithError(err).Fatal("Server failed to start")
 	}
 }

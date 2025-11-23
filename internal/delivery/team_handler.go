@@ -3,6 +3,7 @@ package delivery
 import (
 	"avito-internship/internal/domain"
 	"github.com/gin-gonic/gin"
+	"github.com/sirupsen/logrus"
 	"net/http"
 )
 
@@ -68,6 +69,12 @@ func (tm *TeamMember) ToDomain(teamName string) domain.User {
 func (h *Handler) CreateTeam(c *gin.Context) {
 	var req TeamRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
+		h.logger.WithFields(logrus.Fields{
+			"method": c.Request.Method,
+			"path":   c.Request.URL.Path,
+			"error":  err.Error(),
+		}).Warn("Bad request for CreateTeam")
+
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": gin.H{
 				"code":    "BAD_REQUEST",
@@ -77,11 +84,17 @@ func (h *Handler) CreateTeam(c *gin.Context) {
 		return
 	}
 
+	h.logger.WithFields(logrus.Fields{
+		"team_name": req.Name,
+		"members":   len(req.Members),
+	}).Info("Creating team")
+
 	ctx := c.Request.Context()
 
 	// Create team in database
 	team := domain.Team{Name: req.Name}
 	if err := h.service.Storage().Team().CreateTeam(ctx, team); err != nil {
+		h.logger.WithError(err).Error("Failed to create team in database")
 		h.handleError(c, err)
 		return
 	}
@@ -95,10 +108,15 @@ func (h *Handler) CreateTeam(c *gin.Context) {
 	// Save members in database
 	if len(members) > 0 {
 		if err := h.service.Storage().User().UpsertUsers(ctx, req.Name, members); err != nil {
+			h.logger.WithError(err).Error("Failed to upsert users in database")
 			h.handleError(c, err)
 			return
 		}
 	}
+
+	h.logger.WithFields(logrus.Fields{
+		"team_name": req.Name,
+	}).Info("Team created successfully")
 
 	c.JSON(http.StatusCreated, gin.H{"team": TeamResponse{Name: req.Name, Members: req.Members}})
 }
@@ -119,6 +137,11 @@ func (h *Handler) GetTeam(c *gin.Context) {
 	// Get team name
 	teamName := c.Query("team_name")
 	if teamName == "" {
+		h.logger.WithFields(logrus.Fields{
+			"method": c.Request.Method,
+			"path":   c.Request.URL.Path,
+		}).Warn("team_name query parameter is missing")
+
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": gin.H{
 				"code":    "BAD_REQUEST",
@@ -128,13 +151,23 @@ func (h *Handler) GetTeam(c *gin.Context) {
 		return
 	}
 
+	h.logger.WithFields(logrus.Fields{
+		"team_name": teamName,
+	}).Debug("Getting team")
+
 	// Get team info
 	ctx := c.Request.Context()
 	team, err := h.service.Storage().Team().GetTeam(ctx, teamName)
 	if err != nil {
+		h.logger.WithError(err).Error("Failed to get team from database")
 		h.handleError(c, err)
 		return
 	}
+
+	h.logger.WithFields(logrus.Fields{
+		"team_name": teamName,
+		"members":   len(team.Members),
+	}).Debug("Team retrieved successfully")
 
 	c.JSON(http.StatusOK, team)
 }
