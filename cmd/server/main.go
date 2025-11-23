@@ -4,9 +4,9 @@ import (
 	_ "avito-internship/docs"
 	"avito-internship/internal/config"
 	"avito-internship/internal/delivery"
-	"avito-internship/internal/infrastructure"
 	"avito-internship/internal/logger"
 	"avito-internship/internal/repository"
+	"avito-internship/internal/usecase"
 	"context"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/sirupsen/logrus"
@@ -44,7 +44,7 @@ func main() {
 	logger.Log.Info("Database connection established")
 
 	storage := repository.NewPgStorage(dbPool, logger.Log)
-	service := infrastructure.NewServer(storage, logger.Log)
+	service := usecase.NewServer(storage, logger.Log)
 	handler := delivery.NewHandler(service, logger.Log)
 	router := delivery.NewRouter(handler)
 

@@ -2,7 +2,6 @@ package repository
 
 import (
 	"avito-internship/internal/domain"
-	"avito-internship/internal/repository/postgres"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/sirupsen/logrus"
 )
@@ -21,9 +20,9 @@ type pgStorage struct {
 
 func NewPgStorage(db *pgxpool.Pool, logger *logrus.Logger) Storage {
 	return &pgStorage{
-		team:        postgres.NewTeamRepo(db, logger),
-		user:        postgres.NewUserRepo(db, logger),
-		pullRequest: postgres.NewPRRepo(db, logger),
+		team:        NewTeamRepo(db, logger),
+		user:        NewUserRepo(db, logger),
+		pullRequest: NewPRRepo(db, logger),
 	}
 }
 
