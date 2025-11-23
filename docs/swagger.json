@@ -1,0 +1,673 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "This is PR Service.",
+        "title": "PR Service",
+        "contact": {
+            "name": "API Support",
+            "url": "http://localhost:8080/swagger/index.html"
+        },
+        "version": "1.0"
+    },
+    "host": "localhost:8080",
+    "basePath": "/",
+    "paths": {
+        "/health": {
+            "get": {
+                "description": "Проверяет, что сервис работает корректно",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Health"
+                ],
+                "summary": "Проверка здоровья сервиса",
+                "responses": {
+                    "200": {
+                        "description": "Статус сервиса",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/pullRequest/create": {
+            "post": {
+                "description": "Создает новый пул-реквест и автоматически назначает до двух активных ревьюверов из команды автора. Автор не может быть ревьювером своего PR.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "PullRequests"
+                ],
+                "summary": "Создать PR и автоматически назначить до 2 ревьюверов",
+                "parameters": [
+                    {
+                        "description": "Данные для создания пул-реквеста",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/delivery.CreatePRRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "PR успешно создан",
+                        "schema": {
+                            "$ref": "#/definitions/delivery.CreatePRResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректные данные",
+                        "schema": {
+                            "$ref": "#/definitions/delivery.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Автор или команда не найдены",
+                        "schema": {
+                            "$ref": "#/definitions/delivery.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "PR с таким ID уже существует",
+                        "schema": {
+                            "$ref": "#/definitions/delivery.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/delivery.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/pullRequest/merge": {
+            "post": {
+                "description": "Идемпотентная операция: пометить существующий PR как MERGED. Повторный вызов для уже MERGED PR возвращает успех. pull_request_id передаётся в теле запроса.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "PullRequests"
+                ],
+                "summary": "Пометить PR как MERGED",
+                "parameters": [
+                    {
+                        "description": "ID пул-реквеста для пометки как MERGED",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/delivery.MergePRRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "PR в состоянии MERGED",
+                        "schema": {
+                            "$ref": "#/definitions/delivery.CreatePRResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректные данные запроса",
+                        "schema": {
+                            "$ref": "#/definitions/delivery.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "PR не найден",
+                        "schema": {
+                            "$ref": "#/definitions/delivery.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/delivery.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/pullRequest/reassign": {
+            "post": {
+                "description": "Заменяет одного ревьювера в PR на другого активного пользователя из команды автора. Для закрытых или MERGED PR переназначение запрещено.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "PullRequests"
+                ],
+                "summary": "Переназначить ревьювера на другого члена команды",
+                "parameters": [
+                    {
+                        "description": "Данные для переназначения ревьювера",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/delivery.ReassignReviewerRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Ревьювер успешно переназначен",
+                        "schema": {
+                            "$ref": "#/definitions/delivery.ReassignReviewerResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректные данные",
+                        "schema": {
+                            "$ref": "#/definitions/delivery.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "PR или пользователь не найден",
+                        "schema": {
+                            "$ref": "#/definitions/delivery.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Бизнес-правило нарушено (например, ревьювер отсутствует у PR)",
+                        "schema": {
+                            "$ref": "#/definitions/delivery.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/delivery.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/team/add": {
+            "post": {
+                "description": "Создает новую команду и обновляет/создает пользователей. Если команда уже существует, возвращает ошибку.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Teams"
+                ],
+                "summary": "Создать команду с участниками",
+                "parameters": [
+                    {
+                        "description": "Данные команды",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/delivery.TeamRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Команда успешно создана",
+                        "schema": {
+                            "$ref": "#/definitions/delivery.TeamResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Неверный запрос или команда уже существует",
+                        "schema": {
+                            "$ref": "#/definitions/delivery.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/delivery.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/team/get": {
+            "get": {
+                "description": "Возвращает информацию о команде и ее участниках по имени команды",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Teams"
+                ],
+                "summary": "Получить команду с участниками",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "example": "\"payments\"",
+                        "description": "Уникальное имя команды",
+                        "name": "team_name",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Информация о команде",
+                        "schema": {
+                            "$ref": "#/definitions/domain.Team"
+                        }
+                    },
+                    "400": {
+                        "description": "Не указано имя команды",
+                        "schema": {
+                            "$ref": "#/definitions/delivery.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Команда не найдена",
+                        "schema": {
+                            "$ref": "#/definitions/delivery.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/users/getReview": {
+            "get": {
+                "description": "Возвращает список пул-реквестов, в которых пользователь назначен ревьювером",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Получить PR'ы, где пользователь назначен ревьювером",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "example": "\"u2\"",
+                        "description": "Идентификатор пользователя",
+                        "name": "user_id",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Список PR'ов пользователя",
+                        "schema": {
+                            "$ref": "#/definitions/delivery.PRbyUserResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Не указан user_id",
+                        "schema": {
+                            "$ref": "#/definitions/delivery.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Пользователь не найден",
+                        "schema": {
+                            "$ref": "#/definitions/delivery.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/delivery.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/users/setIsActive": {
+            "post": {
+                "description": "Обновляет статус активности пользователя. Если пользователь не найден, возвращает ошибку.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Установить флаг активности пользователя",
+                "parameters": [
+                    {
+                        "description": "Данные для обновления активности пользователя",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/delivery.SetActiveRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Обновлённый пользователь",
+                        "schema": {
+                            "$ref": "#/definitions/delivery.UserResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Неверный запрос",
+                        "schema": {
+                            "$ref": "#/definitions/delivery.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Пользователь не найден",
+                        "schema": {
+                            "$ref": "#/definitions/delivery.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/delivery.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "delivery.CreatePRRequest": {
+            "description": "Запрос на создание пул-реквеста",
+            "type": "object",
+            "required": [
+                "author_id",
+                "pull_request_id",
+                "pull_request_name"
+            ],
+            "properties": {
+                "author_id": {
+                    "type": "string"
+                },
+                "pull_request_id": {
+                    "type": "string"
+                },
+                "pull_request_name": {
+                    "type": "string"
+                }
+            }
+        },
+        "delivery.CreatePRResponse": {
+            "description": "Ответ с созданным пул-реквестом",
+            "type": "object",
+            "properties": {
+                "pull_request": {
+                    "$ref": "#/definitions/domain.PullRequest"
+                }
+            }
+        },
+        "delivery.ErrorResponse": {
+            "description": "Ответ с ошибкой",
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "object",
+                    "properties": {
+                        "code": {
+                            "type": "string"
+                        },
+                        "message": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "delivery.MergePRRequest": {
+            "description": "Запрос на мердж",
+            "type": "object",
+            "required": [
+                "pull_request_id"
+            ],
+            "properties": {
+                "pull_request_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "delivery.PRbyUserResponse": {
+            "description": "Ответ со списком PR, где пользователь назначен ревьювером",
+            "type": "object",
+            "properties": {
+                "pull_requests": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/delivery.PullRequestResponse"
+                    }
+                },
+                "user_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "delivery.PullRequestResponse": {
+            "description": "Краткая информация о пул-реквесте",
+            "type": "object",
+            "properties": {
+                "author_id": {
+                    "type": "string"
+                },
+                "pull_request_id": {
+                    "type": "string"
+                },
+                "pull_request_name": {
+                    "type": "string"
+                },
+                "status": {
+                    "$ref": "#/definitions/domain.PullRequestStatus"
+                }
+            }
+        },
+        "delivery.ReassignReviewerRequest": {
+            "description": "Запрос на переназначение ревьювера",
+            "type": "object",
+            "required": [
+                "old_reviewer_id",
+                "pull_request_id"
+            ],
+            "properties": {
+                "old_reviewer_id": {
+                    "type": "string"
+                },
+                "pull_request_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "delivery.ReassignReviewerResponse": {
+            "description": "Ответ с переназначением ревьювера",
+            "type": "object",
+            "properties": {
+                "pr": {
+                    "$ref": "#/definitions/domain.PullRequest"
+                },
+                "replaced_by": {
+                    "type": "string"
+                }
+            }
+        },
+        "delivery.SetActiveRequest": {
+            "description": "Запрос на установку флага активности пользователя",
+            "type": "object",
+            "required": [
+                "is_active",
+                "user_id"
+            ],
+            "properties": {
+                "is_active": {
+                    "type": "boolean"
+                },
+                "user_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "delivery.SimpleUser": {
+            "description": "Запрос на создание пользователя в команде",
+            "type": "object",
+            "properties": {
+                "is_active": {
+                    "type": "boolean"
+                },
+                "user_id": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "delivery.TeamRequest": {
+            "description": "Запрос на создание команды с участниками",
+            "type": "object",
+            "required": [
+                "team_name"
+            ],
+            "properties": {
+                "members": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/delivery.SimpleUser"
+                    }
+                },
+                "team_name": {
+                    "type": "string"
+                }
+            }
+        },
+        "delivery.TeamResponse": {
+            "description": "Ответ с информацией о команде",
+            "type": "object",
+            "properties": {
+                "members": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/delivery.SimpleUser"
+                    }
+                },
+                "team_name": {
+                    "type": "string"
+                }
+            }
+        },
+        "delivery.UserResponse": {
+            "description": "Ответ с информацией о пользователе",
+            "type": "object",
+            "properties": {
+                "user": {
+                    "$ref": "#/definitions/domain.User"
+                }
+            }
+        },
+        "domain.PullRequest": {
+            "description": "Пул-реквест в системе",
+            "type": "object",
+            "properties": {
+                "assigned_reviewers": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "author_id": {
+                    "type": "string"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "mergedAt": {
+                    "type": "string"
+                },
+                "pull_request_id": {
+                    "type": "string"
+                },
+                "pull_request_name": {
+                    "type": "string"
+                },
+                "status": {
+                    "$ref": "#/definitions/domain.PullRequestStatus"
+                }
+            }
+        },
+        "domain.PullRequestStatus": {
+            "description": "Статус пул-реквеста",
+            "type": "string",
+            "enum": [
+                "OPEN",
+                "MERGED"
+            ],
+            "x-enum-varnames": [
+                "PROpen",
+                "PRMerged"
+            ]
+        },
+        "domain.Team": {
+            "description": "Команда с участниками",
+            "type": "object",
+            "properties": {
+                "members": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.User"
+                    }
+                },
+                "team_name": {
+                    "type": "string"
+                }
+            }
+        },
+        "domain.User": {
+            "description": "Пользователь системы",
+            "type": "object",
+            "properties": {
+                "is_active": {
+                    "type": "boolean"
+                },
+                "team_name": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        }
+    }
+}

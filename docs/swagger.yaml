@@ -1,0 +1,454 @@
+basePath: /
+definitions:
+  delivery.CreatePRRequest:
+    description: Запрос на создание пул-реквеста
+    properties:
+      author_id:
+        type: string
+      pull_request_id:
+        type: string
+      pull_request_name:
+        type: string
+    required:
+    - author_id
+    - pull_request_id
+    - pull_request_name
+    type: object
+  delivery.CreatePRResponse:
+    description: Ответ с созданным пул-реквестом
+    properties:
+      pull_request:
+        $ref: '#/definitions/domain.PullRequest'
+    type: object
+  delivery.ErrorResponse:
+    description: Ответ с ошибкой
+    properties:
+      error:
+        properties:
+          code:
+            type: string
+          message:
+            type: string
+        type: object
+    type: object
+  delivery.MergePRRequest:
+    description: Запрос на мердж
+    properties:
+      pull_request_id:
+        type: string
+    required:
+    - pull_request_id
+    type: object
+  delivery.PRbyUserResponse:
+    description: Ответ со списком PR, где пользователь назначен ревьювером
+    properties:
+      pull_requests:
+        items:
+          $ref: '#/definitions/delivery.PullRequestResponse'
+        type: array
+      user_id:
+        type: string
+    type: object
+  delivery.PullRequestResponse:
+    description: Краткая информация о пул-реквесте
+    properties:
+      author_id:
+        type: string
+      pull_request_id:
+        type: string
+      pull_request_name:
+        type: string
+      status:
+        $ref: '#/definitions/domain.PullRequestStatus'
+    type: object
+  delivery.ReassignReviewerRequest:
+    description: Запрос на переназначение ревьювера
+    properties:
+      old_reviewer_id:
+        type: string
+      pull_request_id:
+        type: string
+    required:
+    - old_reviewer_id
+    - pull_request_id
+    type: object
+  delivery.ReassignReviewerResponse:
+    description: Ответ с переназначением ревьювера
+    properties:
+      pr:
+        $ref: '#/definitions/domain.PullRequest'
+      replaced_by:
+        type: string
+    type: object
+  delivery.SetActiveRequest:
+    description: Запрос на установку флага активности пользователя
+    properties:
+      is_active:
+        type: boolean
+      user_id:
+        type: string
+    required:
+    - is_active
+    - user_id
+    type: object
+  delivery.SimpleUser:
+    description: Запрос на создание пользователя в команде
+    properties:
+      is_active:
+        type: boolean
+      user_id:
+        type: string
+      username:
+        type: string
+    type: object
+  delivery.TeamRequest:
+    description: Запрос на создание команды с участниками
+    properties:
+      members:
+        items:
+          $ref: '#/definitions/delivery.SimpleUser'
+        type: array
+      team_name:
+        type: string
+    required:
+    - team_name
+    type: object
+  delivery.TeamResponse:
+    description: Ответ с информацией о команде
+    properties:
+      members:
+        items:
+          $ref: '#/definitions/delivery.SimpleUser'
+        type: array
+      team_name:
+        type: string
+    type: object
+  delivery.UserResponse:
+    description: Ответ с информацией о пользователе
+    properties:
+      user:
+        $ref: '#/definitions/domain.User'
+    type: object
+  domain.PullRequest:
+    description: Пул-реквест в системе
+    properties:
+      assigned_reviewers:
+        items:
+          type: string
+        type: array
+      author_id:
+        type: string
+      createdAt:
+        type: string
+      mergedAt:
+        type: string
+      pull_request_id:
+        type: string
+      pull_request_name:
+        type: string
+      status:
+        $ref: '#/definitions/domain.PullRequestStatus'
+    type: object
+  domain.PullRequestStatus:
+    description: Статус пул-реквеста
+    enum:
+    - OPEN
+    - MERGED
+    type: string
+    x-enum-varnames:
+    - PROpen
+    - PRMerged
+  domain.Team:
+    description: Команда с участниками
+    properties:
+      members:
+        items:
+          $ref: '#/definitions/domain.User'
+        type: array
+      team_name:
+        type: string
+    type: object
+  domain.User:
+    description: Пользователь системы
+    properties:
+      is_active:
+        type: boolean
+      team_name:
+        type: string
+      user_id:
+        type: string
+      username:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact:
+    name: API Support
+    url: http://localhost:8080/swagger/index.html
+  description: This is PR Service.
+  title: PR Service
+  version: "1.0"
+paths:
+  /health:
+    get:
+      consumes:
+      - application/json
+      description: Проверяет, что сервис работает корректно
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Статус сервиса
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Проверка здоровья сервиса
+      tags:
+      - Health
+  /pullRequest/create:
+    post:
+      consumes:
+      - application/json
+      description: Создает новый пул-реквест и автоматически назначает до двух активных
+        ревьюверов из команды автора. Автор не может быть ревьювером своего PR.
+      parameters:
+      - description: Данные для создания пул-реквеста
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/delivery.CreatePRRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: PR успешно создан
+          schema:
+            $ref: '#/definitions/delivery.CreatePRResponse'
+        "400":
+          description: Некорректные данные
+          schema:
+            $ref: '#/definitions/delivery.ErrorResponse'
+        "404":
+          description: Автор или команда не найдены
+          schema:
+            $ref: '#/definitions/delivery.ErrorResponse'
+        "409":
+          description: PR с таким ID уже существует
+          schema:
+            $ref: '#/definitions/delivery.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/delivery.ErrorResponse'
+      summary: Создать PR и автоматически назначить до 2 ревьюверов
+      tags:
+      - PullRequests
+  /pullRequest/merge:
+    post:
+      consumes:
+      - application/json
+      description: 'Идемпотентная операция: пометить существующий PR как MERGED. Повторный
+        вызов для уже MERGED PR возвращает успех. pull_request_id передаётся в теле
+        запроса.'
+      parameters:
+      - description: ID пул-реквеста для пометки как MERGED
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/delivery.MergePRRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: PR в состоянии MERGED
+          schema:
+            $ref: '#/definitions/delivery.CreatePRResponse'
+        "400":
+          description: Некорректные данные запроса
+          schema:
+            $ref: '#/definitions/delivery.ErrorResponse'
+        "404":
+          description: PR не найден
+          schema:
+            $ref: '#/definitions/delivery.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/delivery.ErrorResponse'
+      summary: Пометить PR как MERGED
+      tags:
+      - PullRequests
+  /pullRequest/reassign:
+    post:
+      consumes:
+      - application/json
+      description: Заменяет одного ревьювера в PR на другого активного пользователя
+        из команды автора. Для закрытых или MERGED PR переназначение запрещено.
+      parameters:
+      - description: Данные для переназначения ревьювера
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/delivery.ReassignReviewerRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Ревьювер успешно переназначен
+          schema:
+            $ref: '#/definitions/delivery.ReassignReviewerResponse'
+        "400":
+          description: Некорректные данные
+          schema:
+            $ref: '#/definitions/delivery.ErrorResponse'
+        "404":
+          description: PR или пользователь не найден
+          schema:
+            $ref: '#/definitions/delivery.ErrorResponse'
+        "409":
+          description: Бизнес-правило нарушено (например, ревьювер отсутствует у PR)
+          schema:
+            $ref: '#/definitions/delivery.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/delivery.ErrorResponse'
+      summary: Переназначить ревьювера на другого члена команды
+      tags:
+      - PullRequests
+  /team/add:
+    post:
+      consumes:
+      - application/json
+      description: Создает новую команду и обновляет/создает пользователей. Если команда
+        уже существует, возвращает ошибку.
+      parameters:
+      - description: Данные команды
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/delivery.TeamRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Команда успешно создана
+          schema:
+            $ref: '#/definitions/delivery.TeamResponse'
+        "400":
+          description: Неверный запрос или команда уже существует
+          schema:
+            $ref: '#/definitions/delivery.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/delivery.ErrorResponse'
+      summary: Создать команду с участниками
+      tags:
+      - Teams
+  /team/get:
+    get:
+      consumes:
+      - application/json
+      description: Возвращает информацию о команде и ее участниках по имени команды
+      parameters:
+      - description: Уникальное имя команды
+        example: '"payments"'
+        in: query
+        name: team_name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Информация о команде
+          schema:
+            $ref: '#/definitions/domain.Team'
+        "400":
+          description: Не указано имя команды
+          schema:
+            $ref: '#/definitions/delivery.ErrorResponse'
+        "404":
+          description: Команда не найдена
+          schema:
+            $ref: '#/definitions/delivery.ErrorResponse'
+      summary: Получить команду с участниками
+      tags:
+      - Teams
+  /users/getReview:
+    get:
+      consumes:
+      - application/json
+      description: Возвращает список пул-реквестов, в которых пользователь назначен
+        ревьювером
+      parameters:
+      - description: Идентификатор пользователя
+        example: '"u2"'
+        in: query
+        name: user_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Список PR'ов пользователя
+          schema:
+            $ref: '#/definitions/delivery.PRbyUserResponse'
+        "400":
+          description: Не указан user_id
+          schema:
+            $ref: '#/definitions/delivery.ErrorResponse'
+        "404":
+          description: Пользователь не найден
+          schema:
+            $ref: '#/definitions/delivery.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/delivery.ErrorResponse'
+      summary: Получить PR'ы, где пользователь назначен ревьювером
+      tags:
+      - Users
+  /users/setIsActive:
+    post:
+      consumes:
+      - application/json
+      description: Обновляет статус активности пользователя. Если пользователь не
+        найден, возвращает ошибку.
+      parameters:
+      - description: Данные для обновления активности пользователя
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/delivery.SetActiveRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Обновлённый пользователь
+          schema:
+            $ref: '#/definitions/delivery.UserResponse'
+        "400":
+          description: Неверный запрос
+          schema:
+            $ref: '#/definitions/delivery.ErrorResponse'
+        "404":
+          description: Пользователь не найден
+          schema:
+            $ref: '#/definitions/delivery.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/delivery.ErrorResponse'
+      summary: Установить флаг активности пользователя
+      tags:
+      - Users
+swagger: "2.0"
