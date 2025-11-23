@@ -39,9 +39,10 @@ func (r *PRRepo) Create(ctx context.Context, pr domain.PullRequest) error {
 				return domain.ErrPRExists
 			}
 		}
+		return err
 	}
 
-	return err
+	return nil
 }
 
 func (r *PRRepo) GetByUserID(ctx context.Context, userID string) ([]domain.PullRequest, error) {
@@ -131,17 +132,29 @@ func (r *PRRepo) GetByID(ctx context.Context, id string) (*domain.PullRequest, e
 }
 
 func (r *PRRepo) AssignReviewers(ctx context.Context, prID string, reviewers []string) error {
-	batch := &pgx.Batch{}
-	for _, uid := range reviewers {
-		batch.Queue(`
-			INSERT INTO pull_request_shorts (pull_request_id, author_id)
-             VALUES ($1, $2)
-             ON CONFLICT DO NOTHING
-		`, prID, uid,
-		)
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return err
 	}
-	br := r.db.SendBatch(ctx, batch)
-	return br.Close()
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
+
+	stmt := `
+		INSERT INTO pull_request_shorts (pull_request_id, author_id) 
+		VALUES ($1, $2) 
+		ON CONFLICT DO NOTHING
+	`
+	for _, uid := range reviewers {
+		if _, err := tx.Exec(ctx, stmt, prID, uid); err != nil {
+			return err
+		}
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (r *PRRepo) Merge(ctx context.Context, prID string) (*domain.PullRequest, error) {

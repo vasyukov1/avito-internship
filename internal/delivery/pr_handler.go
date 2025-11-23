@@ -17,7 +17,7 @@ type CreatePRRequest struct {
 // CreatePRResponse represents response for creating a pull request
 // @Description Ответ с созданным пул-реквестом
 type CreatePRResponse struct {
-	PullRequest domain.PullRequest `json:"pull_request"`
+	PullRequest domain.PullRequest `json:"pr"`
 }
 
 // MergePRRequest represents request body for merging a pull request

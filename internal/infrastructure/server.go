@@ -5,15 +5,21 @@ import (
 	"avito-internship/internal/repository"
 	"context"
 	"errors"
+	"math/rand"
 	"time"
 )
 
 type Server struct {
 	storage repository.Storage
+	rng     *rand.Rand
 }
 
 func NewServer(storage repository.Storage) *Server {
-	return &Server{storage: storage}
+	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+	return &Server{
+		storage: storage,
+		rng:     rng,
+	}
 }
 
 func (s *Server) Storage() repository.Storage {
@@ -34,13 +40,12 @@ func (s *Server) CreatePullRequest(ctx context.Context, id string, name string, 
 		return nil, err
 	}
 
-	if len(members) == 0 {
-		return nil, domain.ErrNoCandidate
-	}
-
 	var reviewers []string
-	for i := 0; i < len(members) && i < 2; i++ {
-		reviewers = append(reviewers, members[i].ID)
+	if len(members) > 0 {
+		perm := s.rng.Perm(len(members))
+		for i := 0; i < len(perm) && i < 2; i++ {
+			reviewers = append(reviewers, members[perm[i]].ID)
+		}
 	}
 
 	now := time.Now()

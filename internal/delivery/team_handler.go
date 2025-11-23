@@ -38,12 +38,11 @@ type ErrorResponse struct {
 }
 
 func (h *Handler) RegisterTeamRoutes(r *gin.Engine) {
-	teams := r.Group("/users")
+	teams := r.Group("/team")
 	{
 		teams.POST("/add", h.CreateTeam)
 		teams.GET("/get", h.GetTeam)
 	}
-
 }
 
 func (tm *TeamMember) ToDomain(teamName string) domain.User {
@@ -101,7 +100,7 @@ func (h *Handler) CreateTeam(c *gin.Context) {
 		}
 	}
 
-	c.JSON(http.StatusCreated, TeamResponse{Name: req.Name, Members: req.Members})
+	c.JSON(http.StatusCreated, gin.H{"team": TeamResponse{Name: req.Name, Members: req.Members}})
 }
 
 // GetTeam godoc

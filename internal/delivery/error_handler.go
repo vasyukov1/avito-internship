@@ -10,7 +10,7 @@ import (
 func (h *Handler) handleError(c *gin.Context, err error) {
 	switch {
 	case errors.Is(err, domain.ErrTeamExists):
-		c.JSON(http.StatusConflict, gin.H{
+		c.JSON(http.StatusBadRequest, gin.H{
 			"error": gin.H{"code": "TEAM_EXISTS", "message": "team name already exists"},
 		})
 
